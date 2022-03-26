@@ -40,17 +40,17 @@ if (empty($lang) || !is_array($lang))
 $lang = array_merge($lang, array(
 	'ACL_CAT_REPUTATION'	=> 'Reputacja',
 
-	'ACL_A_REPUTATION'	=> 'Zarządza ustawieniami systemu reputacji',
+	'ACL_A_REPUTATION'	=> 'Może zmieniać ustawienia reputacji',
 
-	'ACL_M_RS_MODERATE'	=> 'Moderuje punkty reputacji',
-	'ACL_M_RS_RATE'		=> 'Przyznaje dodatkowe punkty reputacji',
+	'ACL_M_RS_MODERATE'	=> 'Może moderować reputację',
+	'ACL_M_RS_RATE'		=> 'Moze dawać dodatkowe punkty reputacji',
 
-	'ACL_U_RS_DELETE'			=> 'Usuwa przyznane punkty',
-	'ACL_U_RS_RATE'				=> 'Ocenia innych użytkowników',
-	'ACL_U_RS_RATE_NEGATIVE'	=> 'Negatywnie ocenia innych użytkowników<br /><em>Użytkownik musi móc oceniać innych użytkowników, zanim negatywnie oceni innych użytkowników.</em>',
-	'ACL_U_RS_RATE_POST'		=> 'Ocenia posty napisane przez innych użytkowników',
-	'ACL_U_RS_VIEW'				=> 'Wyświetla punkty reputacji',
+	'ACL_U_RS_DELETE'			=> 'Może usuwać własne punkty',
+	'ACL_U_RS_RATE'				=> 'Może oceniać użytkowników',
+	'ACL_U_RS_RATE_NEGATIVE'	=> 'Może negatywnie oceniać użytkowników<br /><em>Użytkownik musi mieć możliwość oceny innych użytkowników, zanim on / ona będzie mógł negatywnie oceniać innych użytkowników.</em>',
+	'ACL_U_RS_RATE_POST'		=> 'Może oceniać posty',
+	'ACL_U_RS_VIEW'				=> 'Może wyświetlać reputację',
 
-	'ACL_F_RS_RATE'				=> 'Ocenia posty innych użytkowników',
-	'ACL_F_RS_RATE_NEGATIVE'	=> 'Negatywnie oceniać posty innych użytkowników<br /><em>Użytkownik musi móc oceniać posty innych użytkowników, zanim negatywnie oceni posty innych użytkowników.</em>',
+	'ACL_F_RS_RATE'				=> 'Może oceniać posty napisane przez innych',
+	'ACL_F_RS_RATE_NEGATIVE'	=> 'Może negatywnie oceniać użytkowników<br /><em>Użytkownik musi mieć możliwość oceny innych użytkowników, zanim on / ona będzie mógł negatywnie oceniać innych użytkowników.</em>',
 ));

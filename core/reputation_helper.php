@@ -10,19 +10,8 @@
 
 namespace pico\reputation\core;
 
-/**
-* Reputation power
-*/
 class reputation_helper
 {
-	/**
-	* Constants for avatar dimensions (width and height)
-	*	small = 40px
-	*	medium = 60 px
-	*/
-	const SMALL = 40;
-	const MEDIUM = 60;
-
 	/**
 	* Reputation class 
 	*
@@ -35,37 +24,15 @@ class reputation_helper
 	{
 		if ($points > 0) 
 		{
-			return 'positive';
+			return 'positive' . ($GLOBALS['config']['rs_negative_point'] ? ' signed' : '');
 		}
 		else if ($points < 0) 
 		{
-			return 'negative';
+			return 'negative signed';
 		}
 		else
 		{
 			return 'neutral';
-		}
-	}
-
-	/**
-	* Avatar dimensions
-	*
-	* @param string $size Avatar size
-	* @static
-	* @access public
-	* @return int Avatar dimension
-	*/
-	static public function avatar_dimensions($size)
-	{
-		switch ($size)
-		{
-			case 'small':
-				return self::SMALL;
-			break;
-
-			case 'medium':
-				return self::MEDIUM;
-			break;
 		}
 	}
 }

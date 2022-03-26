@@ -1,69 +1,88 @@
 reputation_clear_post_controller:
-    path: /reputation/clear/post/{post_id}
+    path: /reputation/post-{post_id}/clear
     defaults:
         _controller: pico.reputation.action.controller:clear_post
     requirements:
         post_id: \d+
 
 reputation_clear_user_controller:
-    path: /reputation/clear/user/{uid}
+    path: /reputation/user-{uid}/clear
     defaults:
         _controller: pico.reputation.action.controller:clear_user
     requirements:
         uid: \d+
 
 reputation_delete_controller:
-    path: /reputation/delete/{rid}
+    path: /reputation/vote-{rid}/delete
     defaults:
         _controller: pico.reputation.action.controller:delete
     requirements:
         rid: \d+
 
 reputation_details_controller:
-    path: /reputation/{uid}/{sort_key}/{sort_dir}/{page}
+    path: /reputation/user-{uid}/{sort_key}/{sort_dir}/{page}
     defaults:
         _controller: pico.reputation.details.controller:details
-        sort_key: 'id'
+        sort_key: 'time'
         sort_dir: 'dsc'
         page: 1
     requirements:
         uid: \d+
-        sort_key: 'id|username|time|point|action'
+        sort_key: 'username|time|point|action'
         sort_dir: 'asc|dsc'
 
 reputation_post_details_controller:
-    path: /reputation/details/post/{post_id}/{sort_key}/{sort_dir}
+    path: /reputation/post-{post_id}/votes/{sort_key}/{sort_dir}
     defaults:
         _controller: pico.reputation.details.controller:postdetails
-        sort_key: 'id'
+        sort_key: 'time'
         sort_dir: 'dsc'
     requirements:
         post_id: \d+
-        sort_key: 'id|username|time|point'
+        sort_key: 'username|time|point'
         sort_dir: 'asc|dsc'
 
+reputation_user_details_controller:
+    path: /reputation/user-{uid}/votes/{sort_key}/{sort_dir}
+    defaults:
+        _controller: pico.reputation.details.controller:userdetails
+        sort_key: 'time'
+        sort_dir: 'dsc'
+    requirements:
+        uid: \d+
+        sort_key: 'username|time|point|action'
+        sort_dir: 'asc|dsc'
+
+reputation_lastvotes_controller:
+    path: /reputation/all/{sort_key}/{sort_dir}/{page}
+    defaults:
+        _controller: pico.reputation.details.controller:lastvotes
+        sort_key: 'time'
+        sort_dir: 'dsc'
+        page: 1
+    requirements:
+        sort_key: 'username_from|username_to|time|point|action'
+        sort_dir: 'asc|dsc'
+
+reputation_explain_vote_points:
+    path: /reputation/user-{uid}/vote-points-explain
+    defaults:
+        _controller: pico.reputation.details.controller:explain_vote_points
+    requirements:
+        uid: \d+
+
 reputation_post_rating_controller:
-    path: /reputation/rate/post/{mode}/{post_id}
+    path: /reputation/post-{post_id}/rate-{mode}
     defaults:
         _controller: pico.reputation.rating.controller:post
     requirements:
         mode: 'positive|negative'
         post_id: \d+
 
-reputation_user_details_controller:
-    path: /reputation/details/user/{uid}/{sort_key}/{sort_dir}
-    defaults:
-        _controller: pico.reputation.details.controller:userdetails
-        sort_key: 'id'
-        sort_dir: 'dsc'
-    requirements:
-        uid: \d+
-        sort_key: 'id|username|time|point|action'
-        sort_dir: 'asc|dsc'
-
 reputation_user_rating_controller:
-    path: /reputation/rate/user/{uid}
+    path: /reputation/user-{uid}/rate-{mode}
     defaults:
         _controller: pico.reputation.rating.controller:user
     requirements:
+        mode: 'positive|negative'
         uid: \d+

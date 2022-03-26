@@ -14,15 +14,15 @@ class reputation_info
 {
 	function module()
 	{
-		return array(
+		return [
 			'filename'	=> '\pico\reputation\acp\reputation_module',
 			'title'		=> 'ACP_REPUTATION_SYSTEM',
-			'modes'		=> array(
-				'overview'		=> array('title' => 'ACP_REPUTATION_OVERVIEW', 'auth' => 'ext_pico/reputation && acl_a_reputation', 'cat' => array('ACP_REPUTATION_SYSTEM')),
-				'settings'		=> array('title' => 'ACP_REPUTATION_SETTINGS', 'auth' => 'ext_pico/reputation && acl_a_reputation', 'cat' => array('ACP_REPUTATION_SYSTEM')),
-				'rate'			=> array('title' => 'ACP_REPUTATION_RATE', 'auth' => 'ext_pico/reputation && acl_a_reputation', 'cat' => array('ACP_REPUTATION_SYSTEM')),
-				'sync'			=> array('title' => 'ACP_REPUTATION_SYNC', 'auth' => 'ext_pico/reputation && acl_a_reputation', 'display' => false, 'cat' => array('ACP_REPUTATION_SYSTEM')),
-			),
-		);
+			'modes'		=> [
+				'overview'		=> ['title' => 'ACP_REPUTATION_OVERVIEW', 'auth' => 'ext_pico/reputation && acl_a_reputation', 'cat' => ['ACP_REPUTATION_SYSTEM']],
+				'settings'		=> ['title' => 'ACP_REPUTATION_SETTINGS', 'auth' => 'ext_pico/reputation && acl_a_reputation', 'cat' => ['ACP_REPUTATION_SYSTEM']],
+				'rate'			=> ['title' => 'ACP_REPUTATION_RATE',     'auth' => 'ext_pico/reputation && acl_a_reputation', 'cat' => ['ACP_REPUTATION_SYSTEM']],
+				'sync'			=> ['title' => 'ACP_REPUTATION_SYNC',     'auth' => 'ext_pico/reputation && acl_a_reputation', 'cat' => ['ACP_REPUTATION_SYSTEM'], 'display' => false],
+			],
+		];
 	}
 }

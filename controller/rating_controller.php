@@ -10,9 +10,6 @@
 
 namespace pico\reputation\controller;
 
-/**
-*
-*/
 class rating_controller
 {
 	/** @var \phpbb\auth\auth */
@@ -29,9 +26,6 @@ class rating_controller
 
 	/** @var \phpbb\request\request */
 	protected $request;
-
-	/* @var \phpbb\symfony_request */
-	protected $symfony_request;
 
 	/** @var \phpbb\template\template */
 	protected $template;
@@ -57,7 +51,6 @@ class rating_controller
 	/** @var string phpEx */
 	protected $php_ext;
 
-	/** Constants for comments */
 	const RS_COMMENT_BOTH = 1;
 	const RS_COMMENT_POST = 2;
 	const RS_COMMENT_USER = 3;
@@ -70,7 +63,6 @@ class rating_controller
 	* @param \phpbb\controller\helper					Controller helper object
 	* @param \phpbb\db\driver\driver $db				Database object
 	* @param \phpbb\request\request $request			Request object
-	* @param \phpbb\symfony_request $symfony_request	Symfony Request object
 	* @param \phpbb\template\template $template			Template object
 	* @param \phpbb\user $user							User object
 	* @param \pico\reputation\core\reputation_helper	Reputation helper object
@@ -82,14 +74,13 @@ class rating_controller
 	* @return \pico\reputation\controller\rating_controller
 	* @access public
 	*/
-	public function __construct(\phpbb\auth\auth $auth, \phpbb\config\config $config, \phpbb\controller\helper $helper, \phpbb\db\driver\driver_interface $db, \phpbb\request\request $request, \phpbb\symfony_request $symfony_request, \phpbb\template\template $template, \phpbb\user $user, \pico\reputation\core\reputation_helper $reputation_helper, \pico\reputation\core\reputation_manager $reputation_manager, \pico\reputation\core\reputation_power $reputation_power, $reputations_table, $root_path, $php_ext)
+	public function __construct(\phpbb\auth\auth $auth, \phpbb\config\config $config, \phpbb\controller\helper $helper, \phpbb\db\driver\driver_interface $db, \phpbb\request\request $request, \phpbb\template\template $template, \phpbb\user $user, \pico\reputation\core\reputation_helper $reputation_helper, \pico\reputation\core\reputation_manager $reputation_manager, \pico\reputation\core\reputation_power $reputation_power, $reputations_table, $root_path, $php_ext)
 	{
 		$this->auth = $auth;
 		$this->config = $config;
 		$this->db = $db;
 		$this->helper = $helper;
 		$this->request = $request;
-		$this->symfony_request = $symfony_request;
 		$this->template = $template;
 		$this->user = $user;
 		$this->reputation_helper = $reputation_helper;
@@ -98,160 +89,119 @@ class rating_controller
 		$this->reputations_table = $reputations_table;
 		$this->root_path = $root_path;
 		$this->php_ext = $php_ext;
+
+		$user->add_lang_ext('pico/reputation', 'reputation_system');
 	}
 
 	/**
 	* Display the post rating page
 	*
-	* @param string $mode		Mode taken from the URL
+	* @param string $mode		Mode taken from the URL 
 	* @param int $post_id		Post ID taken from the URL
 	* @return Symfony\Component\HttpFoundation\Response A Symfony Response object
 	* @access public
 	*/
 	public function post($mode, $post_id)
 	{
-		$this->user->add_lang_ext('pico/reputation', 'reputation_rating');
-
-		// Define basic variables
 		$error = '';
 		$is_ajax = $this->request->is_ajax();
-		$referer = $this->symfony_request->get('_referer');
+
+		// $auc = $this->request->variable('auc', false);
+		$auc = false;
 
 		if (empty($this->config['rs_enable']))
 		{
 			if ($is_ajax)
 			{
-				$json_response = new \phpbb\json_response();
-				$json_data = array(
-					'error_msg' => $this->user->lang('RS_DISABLED'),
-				);
-				$json_response->send($json_data);
+				(new \phpbb\json_response)->send(['error_msg' => $this->user->lang('RS_DISABLED')]);
 			}
 
-			redirect(append_sid("{$this->root_path}index.$this->php_ext"));
+			redirect(append_sid("{$this->root_path}index.{$this->php_ext}"));
 		}
 
-		$reputation_type_id = (int) $this->reputation_manager->get_reputation_type_id('post');
+		$reputation_type_ids = ($auc)
+			? [$this->reputation_manager->get_reputation_type_id('auc_post_buyer'), $this->reputation_manager->get_reputation_type_id('auc_post_seller')]
+			: [$this->reputation_manager->get_reputation_type_id('post')];
 
-		$sql_array = array(
-			'SELECT'	=> 'p.forum_id, p.poster_id, p.post_subject, u.user_type, u.user_reputation, f.reputation_enabled, r.reputation_id, r.reputation_points',
-			'FROM'		=> array(
+		$sql_array = [
+			'SELECT'	=> 'p.forum_id, p.poster_id, p.post_subject, u.user_type, u.username, f.reputation_enabled, r.reputation_id, r.reputation_points, t.topic_first_post_id',
+			'FROM'		=> [
 				POSTS_TABLE		=> 'p',
 				USERS_TABLE		=> 'u',
 				FORUMS_TABLE	=> 'f',
-			),
-			'LEFT_JOIN'	=> array(
-				array(
-					'FROM'	=> array($this->reputations_table => 'r'),
+				TOPICS_TABLE	=> 't',
+			],
+			'LEFT_JOIN'	=> [
+				[
+					'FROM'	=> [$this->reputations_table => 'r'],
 					'ON'	=> 'p.post_id = r.reputation_item_id
-						AND r.reputation_type_id = ' . $reputation_type_id . '
+						AND ' . $this->db->sql_in_set('r.reputation_type_id', $reputation_type_ids) . '
 						AND r.user_id_from = ' . $this->user->data['user_id'],
-				),
-			),
+				],
+			],
 			'WHERE'		=> 'p.post_id = ' . $post_id . '
 				AND p.poster_id = u.user_id
-				AND p.forum_id = f.forum_id',
-		);
+				AND p.forum_id = f.forum_id
+				AND p.topic_id = t.topic_id',
+		];
 		$sql = $this->db->sql_build_query('SELECT', $sql_array);
 		$result = $this->db->sql_query($sql);
 		$row = $this->db->sql_fetchrow($result);
 		$this->db->sql_freeresult($result);
 
-		// We couldn't find this post. May be it was deleted while user voted?
 		if (!$row)
 		{
-			$message = $this->user->lang('RS_NO_POST');
-			$json_data = array(
-				'error_msg' => $message,
-			);
-			$redirect = append_sid("{$this->root_path}index.$this->php_ext");
-			$redirect_text = 'RETURN_INDEX';
-
-			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+			$this->show_error($this->user->lang('RS_NO_POST'));
 		}
 
-		// Cancel action
 		if ($this->request->is_set_post('cancel'))
 		{
-			redirect(append_sid("{$this->root_path}viewtopic.$this->php_ext", 'f=' . $row['forum_id'] . '&amp;p=' . $post_id) . '#p' . $post_id);
+			redirect(append_sid("{$this->root_path}viewtopic.{$this->php_ext}", 'f=' . $row['forum_id'] . '&amp;p=' . $post_id) . '#p' . $post_id);
 		}
 
-		// Fire error if post rating is disabled
-		if (!$this->config['rs_post_rating'] || !$this->config['rs_negative_point'] && $mode == 'negative' || !$row['reputation_enabled'])
+		$post_rating_enabled = ($this->config['rs_post_rating'] == 2 || ($this->config['rs_post_rating'] == 1 && $post_id == $row['topic_first_post_id']));
+		if (!$post_rating_enabled || !$this->config['rs_negative_point'] && $mode == 'negative' || !$row['reputation_enabled'])
 		{
-			$message = $this->user->lang('RS_DISABLED');
-			$json_data = array(
-				'error_msg' => $message,
-			);
-			$redirect = append_sid("{$this->root_path}viewtopic.$this->php_ext", 'f=' . $row['forum_id'] . '&amp;p=' . $post_id) . '#p' . $post_id;
-			$redirect_text = 'RETURN_TOPIC';
-
-			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+			$this->show_error($this->user->lang('RS_DISABLED'), 'viewtopic', $post_id);
 		}
 
-		// No anonymous voting is allowed
 		if ($row['user_type'] == USER_IGNORE)
 		{
-			$message = $this->user->lang('RS_USER_ANONYMOUS');
-			$json_data = array(
-				'error_msg' => $message,
-			);
-			$redirect = append_sid("{$this->root_path}viewtopic.$this->php_ext", 'f=' . $row['forum_id'] . '&amp;p=' . $post_id) . '#p' . $post_id;
-			$redirect_text = 'RETURN_TOPIC';
-
-			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+			$this->show_error($this->user->lang('RS_USER_ANONYMOUS'), 'viewtopic', $post_id);
 		}
 
-		// You cannot rate your own post
 		if ($row['poster_id'] == $this->user->data['user_id'])
 		{
-			$message = $this->user->lang('RS_SELF');
-			$json_data = array(
-				'error_msg' => $message,
-			);
-			$redirect = append_sid("{$this->root_path}viewtopic.$this->php_ext", 'f=' . $row['forum_id'] . '&amp;p=' . $post_id) . '#p' . $post_id;
-			$redirect_text = 'RETURN_TOPIC';
-
-			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+			$this->show_error($this->user->lang('RS_SELF_POST'), 'viewtopic', $post_id);
 		}
 
-		// Don't allow to rate same post
+		if (in_array($row['poster_id'], explode(',', $this->config['rs_users_to_exclude'])))
+		{
+			$this->show_error($this->user->lang('RS_USER_IS_EXCLUDED', $row['username']), 'viewtopic', $post_id);
+		}
+
+		// Don't allow to rate same post - only allow to delete the vote added previously
 		if ($row['reputation_id'])
 		{
-			$message = $this->user->lang('RS_SAME_POST', $row['reputation_points']);
-			$json_data = array(
-				'error_msg' => $message,
-			);
-			$redirect = append_sid("{$this->root_path}viewtopic.$this->php_ext", 'f=' . $row['forum_id'] . '&amp;p=' . $post_id) . '#p' . $post_id;
-			$redirect_text = 'RETURN_TOPIC';
+			$message = $this->user->lang('RS_SAME_POST', ($row['reputation_points'] > 0 ? '+' : '') . $row['reputation_points']);
 
-			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+			if ($this->auth->acl_get('u_rs_delete') && ($mode == 'negative' ? ($row['reputation_points'] > 0) : ($row['reputation_points'] < 0)))
+			{
+				$message .= '<br /><a class="reputation-delete" href="' . $this->helper->route('reputation_delete_controller', ['rid' => $row['reputation_id']] + ($auc ? ['auc' => true] : [])) . '">' . $this->user->lang('RS_DELETE_VOTE') . '</a>';
+			}
+
+			$this->show_error($message, 'viewtopic', $post_id);
 		}
 
-		// Check if user is allowed to vote
 		if (!$this->auth->acl_get('f_rs_rate', $row['forum_id']) || !$this->auth->acl_get('f_rs_rate_negative', $row['forum_id']) && $mode == 'negative' || !$this->auth->acl_get('u_rs_rate_post'))
 		{
-			$message = $this->user->lang('RS_USER_DISABLED');
-			$json_data = array(
-				'error_msg' => $message,
-			);
-			$redirect = append_sid("{$this->root_path}viewtopic.$this->php_ext", 'f=' . $row['forum_id'] . '&amp;p=' . $post_id) . '#p' . $post_id;
-			$redirect_text = 'RETURN_TOPIC';
-
-			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+			$this->show_error($this->user->lang('RS_USER_DISABLED'), 'viewtopic', $post_id);
 		}
 
-		//Check if user reputation is enough to give negative points
+		// Check if user reputation is enough to give negative points
 		if ($this->config['rs_min_rep_negative'] && ($this->user->data['user_reputation'] < $this->config['rs_min_rep_negative']) && $mode == 'negative')
 		{
-			$message = $this->user->lang('RS_USER_NEGATIVE', $this->config['rs_min_rep_negative']);
-			$json_data = array(
-				'error_msg' => $message,
-			);
-			$redirect = append_sid("{$this->root_path}viewtopic.$this->php_ext", 'f=' . $row['forum_id'] . '&amp;p=' . $post_id) . '#p' . $post_id;
-			$redirect_text = 'RETURN_TOPIC';
-
-			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+			$this->show_error($this->user->lang('RS_USER_NEGATIVE', $this->config['rs_min_rep_negative']), 'viewtopic', $post_id);
 		}
 
 		// Anti-abuse behaviour
@@ -263,7 +213,7 @@ class rating_controller
 				FROM ' . $this->reputations_table . '
 				WHERE user_id_from = ' . $this->user->data['user_id'] . '
 					' . $sql_and . '
-					AND reputation_type_id = ' . $reputation_type_id . '
+					AND ' . $this->db->sql_in_set('reputation_type_id', $reputation_type_ids) . '
 					AND reputation_time > ' . $anti_time;
 			$result = $this->db->sql_query($sql);
 			$anti_row = $this->db->sql_fetchrow($result);
@@ -271,48 +221,24 @@ class rating_controller
 
 			if ($anti_row['reputation_per_day'] >= $this->config['rs_anti_post'])
 			{
-				$message = $this->user->lang('RS_ANTISPAM_INFO');
-				$json_data = array(
-					'error_msg' => $message,
-				);
-				$redirect = append_sid("{$this->root_path}viewtopic.$this->php_ext", 'f=' . $row['forum_id'] . '&amp;p=' . $post_id) . '#p' . $post_id;
-				$redirect_text = 'RETURN_TOPIC';
-
-				$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+				$this->show_error($this->user->lang('RS_ANTISPAM_INFO'), 'viewtopic', $post_id);
 			}
 		}
 
-		// Disallow rating banned users
 		if ($this->user->check_ban($row['poster_id'], false, false, true))
 		{
-			$message = $this->user->lang('RS_USER_BANNED');
-			$json_data = array(
-				'error_msg' => $message,
-			);
-			$redirect = append_sid("{$this->root_path}viewtopic.$this->php_ext", 'f=' . $row['forum_id'] . '&amp;p=' . $post_id) . '#p' . $post_id;
-			$redirect_text = 'RETURN_TOPIC';
-
-			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+			$this->show_error($this->user->lang('RS_USER_BANNED'), 'viewtopic', $post_id);
 		}
 
 		// Prevent overrating one user by another
 		if ($this->reputation_manager->prevent_rating($row['poster_id']))
 		{
-			$message = $this->user->lang('RS_ANTISPAM_INFO');
-			$json_data = array(
-				'error_msg' => $message,
-			);
-			$redirect = append_sid("{$this->root_path}viewtopic.$this->php_ext", 'f=' . $row['forum_id'] . '&amp;p=' . $post_id) . '#p' . $post_id;
-			$redirect_text = 'RETURN_TOPIC';
-
-			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+			$this->show_error($this->user->lang('RS_ANTISPAM_INFO'), 'viewtopic', $post_id);
 		}
 
-		// Request variables
 		$points = $this->request->variable('points', '');
 		$comment = $this->request->variable('comment', '', true);
 
-		// Submit vote
 		$submit = false;
 
 		if ($this->request->is_set_post('submit_vote'))
@@ -320,10 +246,8 @@ class rating_controller
 			$submit = true;
 		}
 
-		// The comment
 		if ($submit && $this->config['rs_enable_comment'])
 		{
-			// The comment is too long
 			if (strlen($comment) > $this->config['rs_comment_max_chars'])
 			{
 				$submit = false;
@@ -331,15 +255,10 @@ class rating_controller
 
 				if ($is_ajax)
 				{
-					$json_response = new \phpbb\json_response();
-					$json_data = array(
-						'comment_error' => $error,
-					);
-					$json_response->send($json_data);
+					(new \phpbb\json_response)->send(['comment_error' => $error]);
 				}
 			}
 
-			// Force the comment
 			if (($this->config['rs_force_comment'] == self::RS_COMMENT_BOTH || $this->config['rs_force_comment'] == self::RS_COMMENT_POST) && empty($comment))
 			{
 				$submit = false;
@@ -347,83 +266,68 @@ class rating_controller
 
 				if ($is_ajax)
 				{
-					$json_response = new \phpbb\json_response();
-					$json_data = array(
-						'comment_error' => $error,
-					);
-					$json_response->send($json_data);
+					(new \phpbb\json_response)->send(['comment_error' => $error]);
 				}
 			}
 		}
 
-		// Sumbit vote when the comment and the reputation power are disabled
-		if (!$this->config['rs_enable_comment'] && !$this->config['rs_enable_power'])
+		// Sumbit vote without showing popup window when the comments and the reputation power are disabled
+		if (!$this->config['rs_enable_comment'] && (!$this->config['rs_enable_power'] || $this->config[$auc ? 'rs_max_power_auc' : 'rs_max_power'] == 1))
 		{
 			$submit = true;
 			$points = ($mode == 'negative') ? '-1' : '1';
 		}
 
-		// Get reputation power
 		if ($this->config['rs_enable_power'])
 		{
 			$voting_power_pulldown = '';
-
-			// Get details on user voting - how much power was used
 			$used_power = $this->reputation_power->used($this->user->data['user_id']);
-
-			// Calculate how much maximum power the user has
-			$max_voting_power = $this->reputation_power->get($this->user->data['user_posts'], $this->user->data['user_regdate'], $this->user->data['user_reputation'], $this->user->data['user_warnings'], $this->user->data['group_id']);
+			// $user_reputation_common_plus_auc = $this->user->data['user_reputation'] + $this->user->data['user_reputation_auc_buyer'] + $this->user->data['user_reputation_auc_seller'];
+			$user_reputation_common_plus_auc = $this->user->data['user_reputation'];
+			$max_voting_power = $this->reputation_power->get($this->user->data['user_posts'], $this->user->data['user_regdate'], $user_reputation_common_plus_auc, $this->user->data['user_warnings'], $this->user->data['group_id']);
+			$details_url = $this->helper->route('reputation_explain_vote_points', ['uid' => $this->user->data['user_id']]);
 
 			if ($max_voting_power < 1)
 			{
-				$message = $this->user->lang('RS_NO_POWER');
-				$json_data = array(
-					'error_msg' => $message,
-				);
-				$redirect = append_sid("{$this->root_path}viewtopic.$this->php_ext", 'f=' . $row['forum_id'] . '&amp;p=' . $post_id) . '#p' . $post_id;
-				$redirect_text = 'RETURN_TOPIC';
-
-				$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+				$this->show_error($this->user->lang('RS_NO_POWER', $details_url), 'viewtopic', $post_id);
 			}
 
 			$voting_power_left = $max_voting_power - $used_power;
-
-			// Don't allow to vote more than set in ACP per 1 vote
 			$max_voting_allowed = $this->config['rs_power_renewal'] ? min($max_voting_power, $voting_power_left) : $max_voting_power;
+			$max_voting_allowed = min($max_voting_allowed, $this->config[$auc ? 'rs_max_power_auc' : 'rs_max_power']);
 
-			// If now voting power left - fire error and exit
 			if ($voting_power_left <= 0 && $this->config['rs_power_renewal'])
 			{
-				$message = $this->user->lang('RS_NO_POWER_LEFT', $max_voting_power);
-				$json_data = array(
-					'error_msg' => $message,
-				);
-				$redirect = append_sid("{$this->root_path}viewtopic.$this->php_ext", 'f=' . $row['forum_id'] . '&amp;p=' . $post_id) . '#p' . $post_id;
-				$redirect_text = 'RETURN_TOPIC';
-
-				$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+				$message = $this->user->lang('RS_NO_POWER_LEFT', $max_voting_power, $voting_power_left, $this->user->lang('RS_HOURS', (int) $this->config['rs_power_renewal']), $details_url);
+				$this->show_error($message, 'viewtopic', $post_id);
 			}
 
-			$this->template->assign_vars(array(
-				'RS_POWER_POINTS_LEFT'		=> $this->config['rs_power_renewal'] ? $this->user->lang('RS_VOTE_POWER_LEFT_OF_MAX', $voting_power_left, $max_voting_power, $max_voting_allowed) : '',
+			$this->template->assign_vars([
+				'RS_POWER_POINTS_LEFT'		=> $this->config['rs_power_renewal'] ? $this->user->lang('RS_VOTE_POWER_LEFT_OF_MAX', min($voting_power_left, $max_voting_power), $max_voting_power, $max_voting_allowed) : '',
 				'RS_POWER_PROGRESS_EMPTY'	=> ($this->config['rs_power_renewal'] && $max_voting_power) ? round((($max_voting_power - $voting_power_left) / $max_voting_power) * 100, 0) : '',
-			));
+			]);
 
-			//Preparing HTML for voting by manual spending of user power
-			for($i = 1; $i <= $max_voting_allowed; ++$i)
+			if ($this->config[$auc ? 'rs_max_power_auc' : 'rs_max_power'] > 1)
 			{
-				if ($mode == 'negative')
+				for ($i = 1; $i <= $max_voting_allowed; ++$i)
 				{
-					$voting_power_pulldown = '<option value="-' . $i . '">' . $this->user->lang('RS_NEGATIVE') . ' (-' . $i . ') </option>';
-				}
-				else
-				{
-					$voting_power_pulldown = '<option value="' . $i . '">' . $this->user->lang('RS_POSITIVE') . ' (+' . $i . ')</option>';
-				}
+					if ($mode == 'negative')
+					{
+						$voting_power_pulldown = '<option value="-' . $i . '">' . '&minus;' . $i . '</option>';
+					}
+					else
+					{
+						$voting_power_pulldown = '<option value="' . $i . '">' . '+' . $i . '</option>';
+					}
 
-				$this->template->assign_block_vars('reputation', array(
-					'REPUTATION_POWER'	=> $voting_power_pulldown)
-				);
+					$this->template->assign_block_vars('reputation', [
+						'REPUTATION_POWER'	=> $voting_power_pulldown
+					]);
+				}
+			}
+			else
+			{
+				$points = ($mode == 'negative') ? '-1' : '1';
 			}
 		}
 		else
@@ -431,10 +335,9 @@ class rating_controller
 			$points = ($mode == 'negative') ? '-1' : '1';
 		}
 
-		// Save vote
 		if ($submit)
 		{
-			// Prevent cheater to break the forum permissions to give negative points or give more points than they can
+			// Prevent cheater to break the forum permissions to give negative points or give more points than they can 
 			if (!$this->auth->acl_get('f_rs_rate_negative', $row['forum_id']) && $points < 0 || $points < 0 && $this->config['rs_min_rep_negative'] && ($this->user->data['user_reputation'] < $this->config['rs_min_rep_negative']) || $this->config['rs_enable_power'] && (($points > $max_voting_allowed) || ($points < -$max_voting_allowed)))
 			{
 				$submit = false;
@@ -442,85 +345,81 @@ class rating_controller
 
 				if ($is_ajax)
 				{
-					$json_response = new \phpbb\json_response();
-					$json_data = array(
-						'comment_error' => $error,
-					);
-					$json_response->send($json_data);
+					(new \phpbb\json_response)->send(['comment_error' => $error]);
 				}
 			}
 		}
 
-		if (!empty($error))
+		if ($submit && empty($error))
 		{
-			$submit = false;
-		}
-
-		if ($submit)
-		{
-			$data = array(
+			$data = [
 				'user_id_from'			=> $this->user->data['user_id'],
 				'user_id_to'			=> $row['poster_id'],
 				'reputation_type'		=> 'post',
 				'reputation_item_id'	=> $post_id,
 				'reputation_points'		=> $points,
 				'reputation_comment'	=> $comment,
-			);
+			];
 
 			try
 			{
 				$this->reputation_manager->store_reputation($data);
 			}
-			catch (\pico\reputation\exception\base $e)
+			catch (\Exception $e)
 			{
-				// Catch exception
-				$error = $e->get_message($this->user);
-			}
+				$error = $e->getMessage();
 
-			// Notification data
-			$notification_data = array(
+				if ($is_ajax)
+				{
+					(new \phpbb\json_response)->send(['error_msg' => $error]);
+				}
+			}
+		}
+		if ($submit && empty($error))
+		{
+			$notification_data = [
 				'user_id_to'		=> $row['poster_id'],
 				'user_id_from'		=> $this->user->data['user_id'],
 				'post_id'			=> $post_id,
 				'post_subject'		=> $row['post_subject'],
-				'comment' => $comment,
-			);
+				'auc'				=> $auc,
+			];
+			$this->reputation_manager->add_notification('pico.reputation.notification.type.rate_post_' . $mode, $notification_data);
 
-			$notification_type = ($points > 0) ? 'pico.reputation.notification.type.rate_post_positive' : 'pico.reputation.notification.type.rate_post_negative';
-			$this->reputation_manager->add_notification($notification_type, $notification_data);
-
-			// Get post reputation
 			$post_reputation = $this->reputation_manager->get_post_reputation($post_id);
+			$user_reputation = $this->reputation_manager->get_user_reputation($row['poster_id']);
 
 			$message = $this->user->lang('RS_VOTE_SAVED');
-			$json_data = array(
+			$json_data = [
 				'post_id'				=> $post_id,
 				'poster_id'				=> $row['poster_id'],
-				'post_reputation'		=> $post_reputation,
-				'user_reputation'		=> $this->reputation_manager->get_user_reputation($row['poster_id']),
-				'reputation_class'		=> $this->reputation_helper->reputation_class($post_reputation),
+				'post_reputation'		=> $this->format_number($post_reputation),
+				'user_reputation'		=> $this->format_number($user_reputation),
+				'post_reputation_class'	=> $this->reputation_helper->reputation_class($post_reputation),
+				'user_reputation_class'	=> $this->reputation_helper->reputation_class($user_reputation),
 				'reputation_vote'		=> ($points > 0) ? 'rated_good' : 'rated_bad',
 				'success_msg'			=> $message,
-			);
-			$redirect = append_sid("{$this->root_path}viewtopic.$this->php_ext", 'f=' . $row['forum_id'] . '&amp;p=' . $post_id) . '#p' . $post_id;
-			$redirect_text = 'RETURN_TOPIC';
-
-			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+				'auc'					=> $auc,
+			];
+			$redirect = append_sid("{$this->root_path}viewtopic.{$this->php_ext}", 'f=' . $row['forum_id'] . '&amp;p=' . $post_id) . '#p' . $post_id;
+			$this->reputation_manager->response($message, $json_data, $redirect, 'RETURN_TOPIC', $is_ajax);
 		}
 
-		$this->template->assign_vars(array(
+		$this->template->assign_vars([
 			'ERROR_MSG'					=> $error,
 
-			'S_CONFIRM_ACTION'			=> $this->helper->route('reputation_post_rating_controller', array('mode' => $mode, 'post_id' => $post_id)),
+			'S_CONFIRM_ACTION'			=> $this->helper->route('reputation_post_rating_controller', ['mode' => $mode, 'post_id' => $post_id] + ($auc ? ['auc' => true] : [])),
 			'S_ERROR'					=> (!empty($error)) ? true : false,
-			'S_RS_COMMENT_ENABLE'		=> $this->config['rs_enable_comment'] ? true : false,
 			'S_RS_POWER_ENABLE' 		=> $this->config['rs_enable_power'] ? true : false,
+			'S_RS_COMMENT_ENABLE'		=> $this->config['rs_enable_comment'] ? true : false,
+			'S_RS_COMMENT_REQUIRED'		=> ($this->config['rs_force_comment'] == self::RS_COMMENT_BOTH || $this->config['rs_force_comment'] == self::RS_COMMENT_POST),
 			'S_IS_AJAX'					=> $is_ajax,
 
-			'U_RS_REFERER'	=> $referer,
-		));
+			'RS_MODE'					=> $mode,
+			'RS_AUC'					=> $auc,
+		]);
 
-		return $this->helper->render('ratepost.html', $this->user->lang('RS_POST_RATING'));
+		return $this->helper->render('ratepost.html', $this->user->lang('RS_POST_GIVE_' . strtoupper($mode)));
 	}
 
 	/**
@@ -530,42 +429,30 @@ class rating_controller
 	* @return Symfony\Component\HttpFoundation\Response A Symfony Response object
 	* @access public
 	*/
-	public function user($uid)
+	public function user($mode, $uid)
 	{
-		$this->user->add_lang_ext('pico/reputation', 'reputation_rating');
-
-		// Define some variables
 		$error = '';
 		$is_ajax = $this->request->is_ajax();
-		$referer = $this->symfony_request->get('_referer');
+
+		// $auc = $this->request->variable('auc', false);
+		$auc = false;
 
 		if (empty($this->config['rs_enable']))
 		{
 			if ($is_ajax)
 			{
-				$json_response = new \phpbb\json_response();
-				$json_data = array(
-					'error_msg' => $this->user->lang('RS_DISABLED'),
-				);
-				$json_response->send($json_data);
+				(new \phpbb\json_response)->send(['error_msg' => $this->user->lang('RS_DISABLED')]);
 			}
 
-			redirect(append_sid("{$this->root_path}index.$this->php_ext"));
+			redirect(append_sid("{$this->root_path}index.{$this->php_ext}"));
 		}
 
 		if (!$this->config['rs_user_rating'] || !$this->auth->acl_get('u_rs_rate'))
 		{
-			$message = $this->user->lang('RS_DISABLED');
-			$json_data = array(
-				'error_msg' => $message,
-			);
-			$redirect = append_sid("{$this->root_path}index.$this->php_ext");
-			$redirect_text = 'RETURN_INDEX';
-
-			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+			$this->show_error($this->user->lang('RS_DISABLED'));
 		}
 
-		$sql = 'SELECT user_id, user_type
+		$sql = 'SELECT user_id, user_type, username
 			FROM ' . USERS_TABLE . "
 			WHERE user_id = $uid";
 		$result = $this->db->sql_query($sql);
@@ -574,66 +461,43 @@ class rating_controller
 
 		if (!$row)
 		{
-			$message = $this->user->lang('RS_NO_USER_ID');
-			$json_data = array(
-				'error_msg' => $message,
-			);
-			$redirect = append_sid("{$this->root_path}index.$this->php_ext");
-			$redirect_text = 'RETURN_INDEX';
-
-			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+			$this->show_error($this->user->lang('RS_NO_USER_ID'));
 		}
 
-		// Cancel action
 		if ($this->request->is_set_post('cancel'))
 		{
-			redirect(append_sid("memberlist.$this->php_ext", 'mode=viewprofile&amp;u=' . $uid));
+			redirect(append_sid("memberlist.{$this->php_ext}", 'mode=viewprofile&amp;u=' . $uid));
 		}
 
 		if ($row['user_type'] == USER_IGNORE)
 		{
-			$message = $this->user->lang('RS_USER_ANONYMOUS');
-			$json_data = array(
-				'error_msg' => $message,
-			);
-			$redirect = append_sid("{$this->root_path}index.$this->php_ext");
-			$redirect_text = 'RETURN_INDEX';
-
-			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+			$this->show_error($this->user->lang('RS_USER_ANONYMOUS'));
 		}
 
 		if ($row['user_id'] == $this->user->data['user_id'])
 		{
-			$message = $this->user->lang('RS_SELF');
-			$json_data = array(
-				'error_msg' => $message,
-			);
-			$redirect = append_sid("memberlist.$this->php_ext", 'mode=viewprofile&amp;u=' . $uid);
-			$redirect_text = 'RETURN_PAGE';
-
-			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+			$this->show_error($this->user->lang('RS_SELF'), 'memberlist', $uid);
 		}
 
-		// Disallow rating banned users
+		if (in_array($row['user_id'], explode(',', $this->config['rs_users_to_exclude'])))
+		{
+			$this->show_error($this->user->lang('RS_USER_IS_EXCLUDED', $row['username']), 'memberlist', $uid);
+		}
+
 		if ($this->user->check_ban($uid, false, false, true))
 		{
-			$message = $this->user->lang('RS_USER_BANNED');
-			$json_data = array(
-				'error_msg' => $message,
-			);
-			$redirect = append_sid("memberlist.$this->php_ext", 'mode=viewprofile&amp;u=' . $uid);
-			$redirect_text = 'RETURN_PAGE';
-
-			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+			$this->show_error($this->user->lang('RS_USER_BANNED'), 'memberlist', $uid);
 		}
 
-		$reputation_type_id = (int) $this->reputation_manager->get_reputation_type_id('user');
+		$reputation_type_ids = ($auc)
+			? [$this->reputation_manager->get_reputation_type_id('auc_user_buyer'), $this->reputation_manager->get_reputation_type_id('auc_user_seller')]
+			: [$this->reputation_manager->get_reputation_type_id('user')];
 
-		$sql = 'SELECT reputation_id, reputation_time
+		$sql = 'SELECT reputation_id, reputation_time, reputation_points
 			FROM ' . $this->reputations_table . "
 			WHERE user_id_to = {$uid}
 				AND user_id_from = {$this->user->data['user_id']}
-				AND reputation_type_id = {$reputation_type_id}
+				AND " . $this->db->sql_in_set('reputation_type_id', $reputation_type_ids) . "
 			ORDER by reputation_id DESC";
 		$result = $this->db->sql_query($sql);
 		$check_user = $this->db->sql_fetchrow($result);
@@ -642,54 +506,43 @@ class rating_controller
 		if ($check_user && !$this->config['rs_user_rating_gap'])
 		{
 			$message = $this->user->lang('RS_SAME_USER');
-			$json_data = array(
-				'error_msg' => $message,
-			);
-			$redirect = append_sid("memberlist.$this->php_ext", 'mode=viewprofile&amp;u=' . $uid);
-			$redirect_text = 'RETURN_PAGE';
 
-			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+			if ($this->auth->acl_get('u_rs_delete') && ($mode == 'negative' ? ($check_user['reputation_points'] > 0) : ($check_user['reputation_points'] < 0)))
+			{
+				$message .= '<br /><a class="reputation-delete" href="' . $this->helper->route('reputation_delete_controller', ['rid' => $check_user['reputation_id']] + ($auc ? ['auc' => true] : [])) . '">' . $this->user->lang('RS_DELETE_VOTE') . '</a>';
+			}
+
+			$this->show_error($message, 'memberlist', $uid);
 		}
 
-		if ($this->config['rs_user_rating_gap'] && (time() < $check_user['reputation_time'] + $this->config['rs_user_rating_gap'] * 86400))
+		if ($this->config['rs_user_rating_gap'] && (time() < $check_user['reputation_time'] + $this->config['rs_user_rating_gap'] * 3600))
 		{
-			//Inform user how long he has to wait to rate the user
-			$next_vote_time = ($check_user['reputation_time'] + $this->config['rs_user_rating_gap'] * 86400) - time();
+			// Inform user how long he has to wait to rate the user
+			$next_vote_time = ($check_user['reputation_time'] + $this->config['rs_user_rating_gap'] * 3600) - time();
 			$next_vote_in = '';
 			$next_vote_in .= intval($next_vote_time / 86400) ? intval($next_vote_time / 86400) . ' ' . $this->user->lang('DAYS') . ' ' : '';
 			$next_vote_in .= intval(($next_vote_time / 3600) % 24)  ? intval(($next_vote_time / 3600) % 24) . ' ' . $this->user->lang('HOURS') . ' ' : '';
 			$next_vote_in .= intval(($next_vote_time / 60) % 60) ? intval(($next_vote_time / 60) % 60) . ' ' . $this->user->lang('MINUTES') : '';
 			$next_vote_in .= (intval($next_vote_time) < 60) ? intval($next_vote_time) . ' ' . $this->user->lang('SECONDS') : '';
 
-			$message = $this->user->lang('RS_USER_GAP', $next_vote_in);
-			$json_data = array(
-				'error_msg' => $message,
-			);
-			$redirect = append_sid("memberlist.$this->php_ext", 'mode=viewprofile&amp;u=' . $uid);
-			$redirect_text = 'RETURN_PAGE';
+			$this->show_error($this->user->lang('RS_USER_GAP', $next_vote_in), 'memberlist', $uid);
+		}
 
-			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+		// Check if user reputation is enough to give negative points
+		if ($this->config['rs_min_rep_negative'] && ($this->user->data['user_reputation'] < $this->config['rs_min_rep_negative']) && $mode == 'negative')
+		{
+			$this->show_error($this->user->lang('RS_USER_NEGATIVE', $this->config['rs_min_rep_negative']), 'memberlist', $uid);
 		}
 
 		if ($this->reputation_manager->prevent_rating($uid))
 		{
-			$message = $this->user->lang('RS_SAME_USER');
-			$json_data = array(
-				'error_msg' => $message,
-			);
-			$redirect = append_sid("memberlist.$this->php_ext", 'mode=viewprofile&amp;u=' . $uid);
-			$redirect_text = 'RETURN_TOPIC';
-
-			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+			$this->show_error($this->user->lang('RS_SAME_USER'), 'memberlist', $uid);
 		}
 
-		// Request variables
 		$points = $this->request->variable('points', '');
 		$comment = $this->request->variable('comment', '', true);
-
 		$error = '';
 
-		// Submit vote
 		$submit = false;
 
 		if ($this->request->is_set_post('submit_vote'))
@@ -697,10 +550,8 @@ class rating_controller
 			$submit = true;
 		}
 
-		// The comment
 		if ($submit && $this->config['rs_enable_comment'])
 		{
-			// The comment is too long
 			if (strlen($comment) > $this->config['rs_comment_max_chars'])
 			{
 				$submit = false;
@@ -708,15 +559,10 @@ class rating_controller
 
 				if ($is_ajax)
 				{
-					$json_response = new \phpbb\json_response();
-					$json_data = array(
-						'comment_error' => $error,
-					);
-					$json_response->send($json_data);
+					(new \phpbb\json_response)->send(['comment_error' => $error]);
 				}
 			}
 
-			// Force the comment
 			if (($this->config['rs_force_comment'] == self::RS_COMMENT_BOTH || $this->config['rs_force_comment'] == self::RS_COMMENT_USER) && empty($comment))
 			{
 				$submit = false;
@@ -724,109 +570,78 @@ class rating_controller
 
 				if ($is_ajax)
 				{
-					$json_response = new \phpbb\json_response();
-					$json_data = array(
-						'comment_error' => $error,
-					);
-					$json_response->send($json_data);
+					(new \phpbb\json_response)->send(['comment_error' => $error]);
 				}
 			}
 		}
 
-		// Get reputation power
+		// Sumbit vote without showing popup window when the comments and the reputation power are disabled
+		if (!$this->config['rs_enable_comment'] && (!$this->config['rs_enable_power'] || $this->config[$auc ? 'rs_max_power_auc' : 'rs_max_power'] == 1))
+		{
+			$submit = true;
+			$points = ($mode == 'negative') ? '-1' : '1';
+		}
+
 		if ($this->config['rs_enable_power'])
 		{
 			$voting_power_pulldown = '';
-
-			// Get details on user voting - how much power was used
 			$used_power = $this->reputation_power->used($this->user->data['user_id']);
-
-			//Calculate how much maximum power a user has
-			$max_voting_power = $this->reputation_power->get($this->user->data['user_posts'], $this->user->data['user_regdate'], $this->user->data['user_reputation'], $this->user->data['user_warnings'], $this->user->data['group_id']);
+			// $user_reputation_common_plus_auc = $this->user->data['user_reputation'] + $this->user->data['user_reputation_auc_buyer'] + $this->user->data['user_reputation_auc_seller'];
+			$user_reputation_common_plus_auc = $this->user->data['user_reputation'];
+			$max_voting_power = $this->reputation_power->get($this->user->data['user_posts'], $this->user->data['user_regdate'], $user_reputation_common_plus_auc, $this->user->data['user_warnings'], $this->user->data['group_id']);
+			$details_url = $this->helper->route('reputation_explain_vote_points', ['uid' => $this->user->data['user_id']]);
 
 			if ($max_voting_power < 1)
 			{
-				$message = $this->user->lang('RS_NO_POWER');
-				$json_data = array(
-					'error_msg' => $message,
-				);
-				$redirect = append_sid("memberlist.$this->php_ext", 'mode=viewprofile&amp;u=' . $uid);
-				$redirect_text = 'RETURN_PAGE';
-
-				$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+				$this->show_error($this->user->lang('RS_NO_POWER', $details_url), 'memberlist', $uid);
 			}
 
 			$voting_power_left = $max_voting_power - $used_power;
-
-			//Don't allow to vote more than set in ACP per 1 vote
 			$max_voting_allowed = $this->config['rs_power_renewal'] ? min($max_voting_power, $voting_power_left) : $max_voting_power;
+			$max_voting_allowed = min($max_voting_allowed, $this->config[$auc ? 'rs_max_power_auc' : 'rs_max_power']);
 
-			//If now voting power left - fire error and exit
 			if ($voting_power_left <= 0 && $this->config['rs_power_renewal'])
 			{
-				$message = $this->user->lang('RS_NO_POWER_LEFT', $max_voting_power);
-				$json_data = array(
-					'error_msg' => $message,
-				);
-				$redirect = append_sid("memberlist.$this->php_ext", 'mode=viewprofile&amp;u=' . $uid);
-				$redirect_text = 'RETURN_PAGE';
-
-				$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+				$message = $this->user->lang('RS_NO_POWER_LEFT', $max_voting_power, $voting_power_left, $this->user->lang('RS_HOURS', (int) $this->config['rs_power_renewal']), $details_url);
+				$this->show_error($message, 'memberlist', $uid);
 			}
 
-			$this->template->assign_vars(array(
-				'RS_POWER_POINTS_LEFT'		=> $this->config['rs_power_renewal'] ? $this->user->lang('RS_VOTE_POWER_LEFT_OF_MAX', $voting_power_left, $max_voting_power, $max_voting_allowed) : '',
+			$this->template->assign_vars([
+				'RS_POWER_POINTS_LEFT'		=> $this->config['rs_power_renewal'] ? $this->user->lang('RS_VOTE_POWER_LEFT_OF_MAX', min($voting_power_left, $max_voting_power), $max_voting_power, $max_voting_allowed) : '',
 				'RS_POWER_PROGRESS_EMPTY'	=> ($this->config['rs_power_renewal'] && $max_voting_power) ? round((($max_voting_power - $voting_power_left) / $max_voting_power) * 100, 0) : '',
-			));
+			]);
 
-			//Preparing HTML for voting by manual spending of user power
-			$startpower = $this->config['rs_negative_point'] ? -$max_voting_allowed : 1;
-			for($i = $max_voting_allowed; $i >= $startpower; $i--) //from + to -
-			//for($i = $startpower; $i <= $reputationpower; ++$i) //from - to +
+			if ($this->config[$auc ? 'rs_max_power_auc' : 'rs_max_power'] > 1)
 			{
-				if ($i == 0)
+				for ($i = 1; $i <= $max_voting_allowed; ++$i)
 				{
-					$voting_power_pulldown = '';
-				}
-				if ($i > 0)
-				{
-					$voting_power_pulldown = '<option value="' . $i . '">' . $this->user->lang('RS_POSITIVE') . ' (+' . $i . ') </option>';
-				}
-				if ($i < 0 && $this->auth->acl_get('u_rs_rate_negative') && $this->config['rs_negative_point'] && (($this->config['rs_min_rep_negative'] != 0) ? ($this->user->data['user_reputation'] >= $this->config['rs_min_rep_negative']) : true))
-				{
-					$voting_power_pulldown = '<option value="' . $i . '">' . $this->user->lang('RS_NEGATIVE') . ' (' . $i . ') </option>';
-				}
+					if ($mode == 'negative')
+					{
+						$voting_power_pulldown = '<option value="-' . $i . '">' . '&minus;' . $i . '</option>';
+					}
+					else
+					{
+						$voting_power_pulldown = '<option value="' . $i . '">' . '+' . $i . '</option>';
+					}
 
-				$this->template->assign_block_vars('reputation', array(
-					'REPUTATION_POWER'	=> $voting_power_pulldown)
-				);
+					$this->template->assign_block_vars('reputation', [
+						'REPUTATION_POWER'	=> $voting_power_pulldown
+					]);
+				}
+			}
+			else
+			{
+				$points = ($mode == 'negative') ? '-1' : '1';
 			}
 		}
 		else
 		{
-			$rs_power = '<option value="1">' . $this->user->lang('RS_POSITIVE') . '</option>';
-			if ($this->auth->acl_get('u_rs_rate_negative') && $this->config['rs_negative_point'] && (($this->config['rs_min_rep_negative'] != 0) ? ($this->user->data['user_reputation'] >= $this->config['rs_min_rep_negative']) : true))
-			{
-				$rs_power .= '<option value="-1">' . $this->user->lang('RS_NEGATIVE') . '</option>';
-			}
-			else if ($this->config['rs_enable_comment'])
-			{
-				$points = 1;
-			}
-			else
-			{
-				$submit = true;
-				$points = 1;
-			}
-
-			$this->template->assign_block_vars('reputation', array(
-				'REPUTATION_POWER'	=> $rs_power)
-			);
+			$points = ($mode == 'negative') ? '-1' : '1';
 		}
 
 		if ($submit)
 		{
-			//Prevent cheater to break the forum permissions to give negative points or give more points than they can
+			// Prevent cheater to break the forum permissions to give negative points or give more points than they can 
 			if (!$this->auth->acl_get('u_rs_rate_negative') && $points < 0 || $points < 0 && $this->config['rs_min_rep_negative'] && ($this->user->data['user_reputation'] < $this->config['rs_min_rep_negative']) || $this->config['rs_enable_power'] && (($points > $max_voting_allowed) || ($points < -$max_voting_allowed)))
 			{
 				$submit = false;
@@ -834,69 +649,103 @@ class rating_controller
 
 				if ($is_ajax)
 				{
-					$json_response = new \phpbb\json_response();
-					$json_data = array(
-						'comment_error' => $error,
-					);
-					$json_response->send($json_data);
+					(new \phpbb\json_response)->send(['comment_error' => $error]);
 				}
 			}
 		}
 
-		if (!empty($error))
+		if ($submit && empty($error))
 		{
-			$submit = false;
-		}
-
-		if ($submit)
-		{
-			$data = array(
+			$data = [
 				'user_id_from'			=> $this->user->data['user_id'],
 				'user_id_to'			=> $uid,
 				'reputation_type'		=> 'user',
 				'reputation_item_id'	=> $uid,
 				'reputation_points'		=> $points,
 				'reputation_comment'	=> $comment,
-			);
+			];
 
 			try
 			{
 				$this->reputation_manager->store_reputation($data);
 			}
-			catch (\pico\reputation\exception\base $e)
+			catch (\Exception $e)
 			{
-				// Catch exception
-				$error = $e->get_message($this->user);
-			}
+				$error = $e->getMessage();
 
-			// Prepare notification data and notify user
-			$notification_data = array(
+				if ($is_ajax)
+				{
+					(new \phpbb\json_response)->send(['error_msg' => $error]);
+				}
+			}
+		}
+		if ($submit && empty($error))
+		{
+			$notification_data = [
 				'user_id_to'	=> $uid,
 				'user_id_from'	=> $this->user->data['user_id'],
-			);
-			$this->reputation_manager->add_notification('pico.reputation.notification.type.rate_user', $notification_data);
+				'auc'			=> $auc,
+			];
+			$this->reputation_manager->add_notification('pico.reputation.notification.type.rate_user_' . $mode, $notification_data);
 
 			$message = $this->user->lang('RS_VOTE_SAVED');
-			$json_data = array(
-				'user_reputation'		=> '<strong>' . $this->reputation_manager->get_user_reputation($uid) . '</strong>',
+			$user_reputation = $this->reputation_manager->get_user_reputation($uid);
+			$json_data = [
+				'user_id'				=> $uid,
+				'user_reputation'		=> $this->format_number($user_reputation),
+				'user_reputation_class'	=> $this->reputation_helper->reputation_class($user_reputation),
+				'reputation_vote'		=> ($points > 0) ? 'rated_good' : 'rated_bad',
 				'success_msg'			=> $message,
-			);
-			$redirect = append_sid("memberlist.$this->php_ext", 'mode=viewprofile&amp;u=' . $uid);
-			$redirect_text = 'RETURN_PAGE';
-
-			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
+				'auc'					=> $auc,
+			];
+			$redirect = append_sid("memberlist.{$this->php_ext}", 'mode=viewprofile&amp;u=' . $uid);
+			$this->reputation_manager->response($message, $json_data, $redirect, 'RETURN_PAGE', $is_ajax);
 		}
 
-		$this->template->assign_vars(array(
+		$this->template->assign_vars([
 			'ERROR_MSG'					=> $error,
 
-			'S_CONFIRM_ACTION'			=> $this->helper->route('reputation_user_rating_controller', array('uid' => $uid)),
+			'S_CONFIRM_ACTION'			=> $this->helper->route('reputation_user_rating_controller', ['mode' => $mode, 'uid' => $uid] + ($auc ? ['auc' => true] : [])),
+			'S_RS_POWER_ENABLE' 		=> $this->config['rs_enable_power'] ? true : false,
 			'S_RS_COMMENT_ENABLE'		=> $this->config['rs_enable_comment'] ? true : false,
+			'S_RS_COMMENT_REQUIRED'		=> ($this->config['rs_force_comment'] == self::RS_COMMENT_BOTH || $this->config['rs_force_comment'] == self::RS_COMMENT_USER),
 			'S_IS_AJAX'					=> $is_ajax,
 
-			'U_RS_REFERER'	=> $referer,
-		));
+			'RS_MODE'					=> $mode,
+			'RS_AUC'					=> $auc,
+		]);
 
-		return $this->helper->render('rateuser.html', $this->user->lang('RS_USER_RATING'));
+		return $this->helper->render('rateuser.html', $this->user->lang('RS_USER_GIVE_' . strtoupper($mode)));
+	}
+
+	private function show_error($text, $redirect_page, $redirect_item_id)
+	{
+		if ($redirect_page == 'viewtopic'):
+			$redirect_url = append_sid("{$this->root_path}viewtopic.{$this->php_ext}", "p=$redirect_item_id'#p$redirect_item_id");
+			$redirect_url_text = 'RETURN_TOPIC';
+		elseif ($redirect_page == 'memberlist'):
+			$redirect_url = append_sid("memberlist.{$this->php_ext}", "mode=viewprofile&amp;u=$redirect_item_id");
+			$redirect_url_text = 'RETURN_PAGE';
+		else:
+			$redirect_url = append_sid("{$this->root_path}index.{$this->php_ext}");
+			$redirect_url_text = 'RETURN_INDEX';
+		endif;
+
+		meta_refresh(3, $redirect_url);
+
+		if ($this->request->is_ajax())
+		{
+			(new \phpbb\json_response)->send(['error_msg' => $text]);
+		}
+		else
+		{
+			$text .= '<br /><br />' . $this->user->lang($redirect_url_text, '<a href="' . $redirect_url . '">', '</a>');
+			trigger_error($text);
+		}
+	}
+
+	private function format_number($number)
+	{
+		return ($this->config['rs_negative_point'] && $number > 0 ? '+' : '') . $number;
 	}
 }

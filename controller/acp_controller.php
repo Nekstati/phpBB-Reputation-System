@@ -10,9 +10,6 @@
 
 namespace pico\reputation\controller;
 
-/**
-* ACP controller
-*/
 class acp_controller implements acp_interface
 {
 	/** @var \phpbb\config\config */
@@ -103,7 +100,7 @@ class acp_controller implements acp_interface
 	{
 		add_form_key('overview');
 
-		$errors = array();
+		$errors = [];
 
 		$action = $this->request->variable('action', '');
 
@@ -126,9 +123,7 @@ class acp_controller implements acp_interface
 
 			if ($confirm)
 			{
-				confirm_box(false, $this->user->lang($confirm_lang), build_hidden_fields(array(
-					'action'	=> $action,
-				)));
+				confirm_box(false, $this->user->lang($confirm_lang), build_hidden_fields(['action'	=> $action]));
 			}
 		}
 		else
@@ -148,7 +143,7 @@ class acp_controller implements acp_interface
 					$this->db->sql_freeresult($result);
 
 					// Redirect to hidden sync module
-					redirect(append_sid("{$this->phpbb_admin_path}index.$this->php_ext", "i={$sync_module_id}&amp;mode=sync"));
+					redirect(append_sid("{$this->phpbb_admin_path}index.{$this->php_ext}", "i={$sync_module_id}&amp;mode=sync"));
 				break;
 
 				case 'truncate':
@@ -179,18 +174,17 @@ class acp_controller implements acp_interface
 			}
 
 			add_log('admin', 'REPUTATION_SETTINGS_CHANGED');
+			meta_refresh(2, $this->u_action);
 			trigger_error($this->user->lang('REPUTATION_SETTINGS_CHANGED') . adm_back_link($this->u_action));
 		}
 
-		$this->template->assign_vars(array(
+		$this->template->assign_vars([
 			'S_ERROR'		=> (sizeof($errors)) ? true : false,
 			'ERROR_MSG'		=> implode('<br />', $errors),
-
 			'S_REPUTATION_ENABLED'	=> $this->config['rs_enable'] ? true : false,
 			'S_FOUNDER'				=> ($this->user->data['user_type'] == USER_FOUNDER) ? true : false,
-
 			'U_ACTION'		=> $this->u_action
-		));
+		]);
 	}
 
 	/**
@@ -201,64 +195,67 @@ class acp_controller implements acp_interface
 	*/
 	public function manage_options()
 	{
-		// Add form key
 		add_form_key('manage_settings');
-
 		$this->new_config = $this->config;
-
-		// Add setting methods class
 		$method = new setting_methods($this->user, $this->new_config);
 
-		$display_vars = array(
-			'legend1'				=> array('lang' => 'ACP_RS_MAIN'),
-			'rs_negative_point'		=> array('lang' => 'RS_NEGATIVE_POINT', 'validate' => 'bool', 'type' => 'radio:yes_no', 'explain' => true),
-			'rs_min_rep_negative'	=> array('lang' => 'RS_MIN_REP_NEGATIVE', 'validate' => 'int', 'type' => 'text:4:5', 'explain' => true),
-			'rs_warning'			=> array('lang' => 'RS_WARNING', 'validate' => 'bool', 'type' => 'radio:yes_no', 'explain' => true),
-			'rs_max_power_warning'	=> array('lang' => 'RS_WARNING_MAX_POWER', 'validate' => 'int:1', 'type' => 'text:4:5', 'explain' => true),
-			'rs_min_point'			=> array('lang' => 'RS_MIN_POINT', 'validate' => 'int', 'type' => 'text:4:5', 'explain' => true),
-			'rs_max_point'			=> array('lang' => 'RS_MAX_POINT', 'validate' => 'int', 'type' => 'text:4:5', 'explain' => true),
-			'rs_prevent_perc'		=> array('lang' => 'RS_PREVENT_OVERRATING', 'validate' => 'int:0:99', 'type' => 'false', 'method' => 'false', 'explain' => false),
-			'rs_prevent_num'		=> array('lang' => 'RS_PREVENT_OVERRATING', 'validate' => 'int:0', 'type' => 'custom:0:99', 'function' => array($method, 'overrating'), 'explain' => true, 'append' => ' %'),
-			'rs_per_page'			=> array('lang' => 'RS_PER_PAGE', 'validate' => 'int', 'type' => 'text:4:5', 'explain' => true),
-			'rs_display_avatar'		=> array('lang' => 'RS_DISPLAY_AVATAR', 'validate' => 'bool', 'type' => 'radio:yes_no', 'explain' => true),
-			'rs_point_type'			=> array('lang' => 'RS_POINT_TYPE', 'validate' => 'bool', 'type' => 'custom', 'function' => array($method, 'point_type'), 'explain' => true),
+		$display_vars = [
+			'legend1'				=> ['lang' => 'ACP_RS_MAIN'],
+			'rs_negative_point'		=> ['lang' => 'RS_NEGATIVE_POINT', 'validate' => 'bool', 'type' => 'radio:yes_no', 'explain' => false],
+			'rs_min_rep_negative'	=> ['lang' => 'RS_MIN_REP_NEGATIVE', 'validate' => 'int', 'type' => 'number', 'explain' => true],
+			'rs_warning'			=> ['lang' => 'RS_WARNING', 'validate' => 'bool', 'type' => 'radio:yes_no', 'explain' => true],
+			'rs_max_power_warning'	=> ['lang' => 'RS_WARNING_MAX_POWER', 'validate' => 'int:1', 'type' => 'number:1', 'explain' => true],
+			'rs_min_point'			=> ['lang' => 'RS_MIN_POINT', 'validate' => 'int::0', 'type' => 'number::0', 'explain' => true],
+			'rs_max_point'			=> ['lang' => 'RS_MAX_POINT', 'validate' => 'int:0', 'type' => 'number:0', 'explain' => true],
+			'rs_prevent_perc'		=> ['lang' => 'RS_PREVENT_OVERRATING', 'validate' => 'int:0:99', 'type' => 'false', 'method' => 'false', 'explain' => false],
+			'rs_prevent_num'		=> ['lang' => 'RS_PREVENT_OVERRATING', 'validate' => 'int:0', 'type' => 'custom:0:99', 'function' => [$method, 'overrating'], 'explain' => true, 'append' => ' %'],
+			'rs_users_to_exclude'	=> ['lang' => 'RS_USERS_TO_EXCLUDE', 'validate' => 'string', 'type' => 'text:0:255', 'explain' => true],
+			'rs_instant_vote'		=> ['lang' => 'RS_INSTANT_VOTE', 'validate' => 'none', 'type' => 'custom', 'function' => [$method, 'instant_vote'], 'explain' => true],
 
-			'legend2'				=> array('lang' => 'ACP_RS_POSTS_RATING'),
-			'rs_post_rating'		=> array('lang' => 'RS_POST_RATING', 'validate' => 'bool', 'type' => 'custom', 'function' => array($method, 'post_rating'), 'explain' => true),
-			'rs_anti_time'			=> array('lang' => 'RS_ANTISPAM', 'validate' => 'int:0:180', 'type' => false, 'method' => false, 'explain' => false,),
-			'rs_anti_post'			=> array('lang' => 'RS_ANTISPAM', 'validate' => 'int:0', 'type' => 'custom:0:180', 'function' => array($method, 'antispam'), 'explain' => true),
-			'rs_anti_method'		=> array('lang' => 'RS_ANTISPAM_METHOD', 'validate' => 'bool', 'type' => 'custom', 'function' => array($method, 'antimethod'), 'explain' => true),
+			'legend2'				=> ['lang' => 'ACP_RS_DISPLAY'],
+			'rs_per_page'			=> ['lang' => 'RS_PER_PAGE', 'validate' => 'int:1', 'type' => 'number:1', 'explain' => false],
+			'rs_display_avatar'		=> ['lang' => 'RS_DISPLAY_AVATAR', 'validate' => 'bool', 'type' => 'radio:yes_no', 'explain' => true],
+			'rs_point_type'			=> ['lang' => 'RS_POINT_TYPE', 'validate' => 'bool', 'type' => 'custom', 'function' => [$method, 'point_type'], 'explain' => true],
+			'rs_content_widget_type'		=> ['lang' => 'RS_CONTENT_WIDGET_TYPE', 'validate' => 'int:0:2', 'type' => 'custom', 'function' => [$method, 'rs_content_widget_type'], 'explain' => false],
+			'rs_miniprofile_widget_type'	=> ['lang' => 'RS_MINIPROFILE_WIDGET_TYPE', 'validate' => 'int:0:2', 'type' => 'custom', 'function' => [$method, 'rs_miniprofile_widget_type'], 'explain' => true],
+			// 'rs_auc_miniprofile_double_rep'	=> ['lang' => 'RS_AUC_MINIPROFILE_DOUBLE_REP', 'validate' => 'int:0:1', 'type' => 'custom', 'function' => [$method, 'rs_auc_miniprofile_double_rep'], 'explain' => true],
 
-			'legend3'				=> array('lang' => 'ACP_RS_USERS_RATING'),
-			'rs_user_rating'		=> array('lang' => 'RS_USER_RATING', 'validate' => 'bool', 'type' => 'radio:yes_no', 'explain' => false),
-			'rs_user_rating_gap'	=> array('lang' => 'RS_USER_RATING_GAP', 'validate' => 'string', 'type' => 'text:4:5', 'explain' => true, 'append' => ' ' . $this->user->lang['DAYS']),
+			'legend3'				=> ['lang' => 'ACP_RS_POSTS_RATING'],
+			'rs_post_rating'		=> ['lang' => 'RS_POST_RATING', 'validate' => 'int:0:2', 'type' => 'custom', 'function' => [$method, 'post_rating'], 'explain' => true],
+			'rs_anti_time'			=> ['lang' => 'RS_ANTISPAM', 'validate' => 'int:0:180', 'type' => false, 'method' => false, 'explain' => false],
+			'rs_anti_post'			=> ['lang' => 'RS_ANTISPAM', 'validate' => 'int:0', 'type' => 'custom:0:180', 'function' => [$method, 'antispam'], 'explain' => true],
+			'rs_anti_method'		=> ['lang' => 'RS_ANTISPAM_METHOD', 'validate' => 'bool', 'type' => 'custom', 'function' => [$method, 'antimethod'], 'explain' => true],
 
-			'legend4'				=> array('lang' => 'ACP_RS_COMMENT'),
-			'rs_enable_comment'		=> array('lang' => 'RS_ENABLE_COMMENT', 'validate' => 'bool', 'type' => 'radio:yes_no', 'explain' => true),
-			'rs_force_comment'		=> array('lang' => 'RS_FORCE_COMMENT', 'validate' => 'int:0:3', 'type' => 'custom', 'function' => array($method, 'select_comment'), 'explain' => true),
-			'rs_comment_max_chars'	=> array('lang' => 'RS_COMMEN_LENGTH', 'validate' => 'int:0', 'type' => 'text:4:5', 'explain' => true),
+			'legend4'				=> ['lang' => 'ACP_RS_USERS_RATING'],
+			'rs_user_rating'		=> ['lang' => 'RS_USER_RATING', 'validate' => 'bool', 'type' => 'radio:yes_no', 'explain' => false],
+			'rs_user_rating_gap'	=> ['lang' => 'RS_USER_RATING_GAP', 'validate' => 'int:0', 'type' => 'number:0', 'explain' => true, 'append' => ' ' . $this->user->lang['HOURS']],
 
-			'legend5'				=> array('lang' => 'ACP_RS_POWER'),
-			'rs_enable_power'		=> array('lang' => 'RS_ENABLE_POWER', 'validate' => 'bool', 'type' => 'radio:yes_no', 'explain' => true),
-			'rs_power_renewal'		=> array('lang' => 'RS_POWER_RENEWAL', 'validate' => 'int:0', 'type' => 'text:4:5', 'explain' => true, 'append' => ' ' . $this->user->lang['HOURS']),
-			'rs_min_power'			=> array('lang' => 'RS_MIN_POWER', 'validate' => 'int:0', 'type' => 'text:4:5', 'explain' => true),
-			'rs_max_power'			=> array('lang' => 'RS_MAX_POWER', 'validate' => 'int:1:20', 'type' => 'text:4:5', 'explain' => true),
-			'rs_power_explain'		=> array('lang' => 'RS_POWER_EXPLAIN', 'validate' => 'bool', 'type' => 'radio:yes_no', 'explain' => true),
-			'rs_total_posts'		=> array('lang' => 'RS_TOTAL_POSTS', 'validate' => 'int:0', 'type' => 'text:4:5', 'explain' => true),
-			'rs_membership_days'	=> array('lang' => 'RS_MEMBERSHIP_DAYS', 'validate' => 'int:0', 'type' => 'text:4:5', 'explain' => true),
-			'rs_power_rep_point'	=> array('lang' => 'RS_POWER_REP_POINT', 'validate' => 'int:0', 'type' => 'text:4:5', 'explain' => true),
-			'rs_power_lose_warn'	=> array('lang' => 'RS_LOSE_POWER_WARN', 'validate' => 'int:0', 'type' => 'text:4:5', 'explain' => true),
+			'legend5'				=> ['lang' => 'ACP_RS_COMMENT'],
+			'rs_enable_comment'		=> ['lang' => 'RS_ENABLE_COMMENT', 'validate' => 'bool', 'type' => 'radio:yes_no', 'explain' => true],
+			'rs_force_comment'		=> ['lang' => 'RS_FORCE_COMMENT', 'validate' => 'int:0:3', 'type' => 'custom', 'function' => [$method, 'select_comment'], 'explain' => false],
+			'rs_comment_max_chars'	=> ['lang' => 'RS_COMMEN_LENGTH', 'validate' => 'int:0', 'type' => 'number:0', 'explain' => true],
 
-			'legend7'				=> array('lang' => 'ACP_RS_TOPLIST'),
-			'rs_enable_toplist'		=> array('lang' => 'RS_ENABLE_TOPLIST', 'validate' => 'bool', 'type' => 'radio:yes_no', 'explain' => true),
-			'rs_toplist_direction'	=> array('lang' => 'RS_TOPLIST_DIRECTION', 'validate' => 'bool', 'type' => 'custom', 'function' => array($method, 'toplist_direction'), 'explain' => true),
-			'rs_toplist_num'		=> array('lang' => 'RS_TOPLIST_NUM', 'validate' => 'int', 'type' => 'text:4:5', 'explain' => true),
-		);
+			'legend6'				=> ['lang' => 'ACP_RS_POWER'],
+			'rs_enable_power'		=> ['lang' => 'RS_ENABLE_POWER', 'validate' => 'bool', 'type' => 'radio:yes_no', 'explain' => true],
+			'rs_power_renewal'		=> ['lang' => 'RS_POWER_RENEWAL', 'validate' => 'int:0', 'type' => 'number:0', 'explain' => true, 'append' => ' ' . $this->user->lang['HOURS']],
+			'rs_min_power'			=> ['lang' => 'RS_MIN_POWER', 'validate' => 'int:0:10', 'type' => 'number:0:10', 'explain' => true],
+			'rs_max_power'			=> ['lang' => 'RS_MAX_POWER', 'validate' => 'int:1:20', 'type' => 'number:1:20', 'explain' => true],
+			// 'rs_max_power_auc'		=> ['lang' => 'RS_MAX_POWER_AUC', 'validate' => 'int:1:20', 'type' => 'number:1:20', 'explain' => false],
+			// 'rs_power_explain'		=> ['lang' => 'RS_POWER_EXPLAIN', 'validate' => 'bool', 'type' => 'radio:yes_no', 'explain' => true],
+			'rs_total_posts'		=> ['lang' => 'RS_TOTAL_POSTS', 'validate' => 'int:0', 'type' => 'number:0', 'explain' => true],
+			'rs_membership_days'	=> ['lang' => 'RS_MEMBERSHIP_DAYS', 'validate' => 'int:0', 'type' => 'number:0', 'explain' => true],
+			'rs_power_rep_point'	=> ['lang' => 'RS_POWER_REP_POINT', 'validate' => 'int:0', 'type' => 'number:0', 'explain' => true],
+			'rs_power_lose_warn'	=> ['lang' => 'RS_LOSE_POWER_WARN', 'validate' => 'int:0', 'type' => 'number:0', 'explain' => true],
 
-		$cfg_array = $this->request->is_set_post('config') ? utf8_normalize_nfc(request_var('config', array('' => ''), true)) : $this->new_config;
-		$errors = array();
+			'legend7'				=> ['lang' => 'ACP_RS_TOPLIST'],
+			'rs_enable_toplist'		=> ['lang' => 'RS_ENABLE_TOPLIST', 'validate' => 'bool', 'type' => 'radio:yes_no', 'explain' => true],
+			'rs_toplist_direction'	=> ['lang' => 'RS_TOPLIST_DIRECTION', 'validate' => 'bool', 'type' => 'custom', 'function' => [$method, 'toplist_direction'], 'explain' => false],
+			'rs_toplist_num'		=> ['lang' => 'RS_TOPLIST_NUM', 'validate' => 'int:1', 'type' => 'number:1', 'explain' => false],
+		];
 
-		// We validate the complete config if wished
+		$cfg_array = $this->request->is_set_post('config') ? utf8_normalize_nfc(request_var('config', ['' => ''], true)) : $this->new_config;
+		$errors = [];
+
 		validate_config_vars($display_vars, $cfg_array, $errors);
 
 		$submit = ($this->request->is_set_post('submit') || $this->request->is_set_post('enable_forums_reputation')) ? true : false;
@@ -268,16 +265,30 @@ class acp_controller implements acp_interface
 			$errors[] = $this->user->lang('FORM_INVALID');
 		}
 
-		// Do not write values if there is an error
+		if ($submit && $cfg_array['rs_content_widget_type'] + $cfg_array['rs_miniprofile_widget_type'] > 3)
+		{
+			$errors[] = $this->user->lang('RS_WIDGET_TYPE_ERROR');
+		}
+
+		$cfg_array['rs_users_to_exclude'] = str_replace(' ', '', $cfg_array['rs_users_to_exclude']);
+		if ($submit && preg_match('/[^0-9^,]/', $cfg_array['rs_users_to_exclude']))
+		{
+			$errors[] = $this->user->lang('RS_USERS_TO_EXCLUDE_ERROR');
+		}
+
 		if (sizeof($errors))
 		{
 			$submit = false;
 		}
 
-		// We go through the display_vars to make sure no one is trying to set variables he/she is not allowed to...
 		foreach ($display_vars as $config_name => $null)
 		{
 			if (!isset($cfg_array[$config_name]) || strpos($config_name, 'legend') !== false)
+			{
+				continue;
+			}
+
+			if ($config_name == 'rs_instant_vote')
 			{
 				continue;
 			}
@@ -298,18 +309,16 @@ class acp_controller implements acp_interface
 		if ($submit)
 		{
 			add_log('admin', 'REPUTATION_SETTINGS_CHANGED');
-
+			meta_refresh(2, $this->u_action);
 			trigger_error($this->user->lang('REPUTATION_SETTINGS_CHANGED') . adm_back_link($this->u_action));
 		}
 
-		$this->template->assign_vars(array(
+		$this->template->assign_vars([
 			'S_ERROR'				=> (sizeof($errors)) ? true : false,
 			'ERROR_MSG'				=> implode('<br />', $errors),
-
 			'U_ACTION'				=> $this->u_action
-		));
+		]);
 
-		// Output relevant page
 		foreach ($display_vars as $config_key => $vars)
 		{
 			if (!is_array($vars) && strpos($config_key, 'legend') === false)
@@ -319,10 +328,10 @@ class acp_controller implements acp_interface
 
 			if (strpos($config_key, 'legend') !== false)
 			{
-				$this->template->assign_block_vars('options', array(
+				$this->template->assign_block_vars('options', [
 					'S_LEGEND'		=> true,
 					'LEGEND'		=> $this->user->lang($vars['lang']),
-				));
+				]);
 
 				continue;
 			}
@@ -346,13 +355,13 @@ class acp_controller implements acp_interface
 				continue;
 			}
 
-			$this->template->assign_block_vars('options', array(
+			$this->template->assign_block_vars('options', [
 				'KEY'			=> $config_key,
 				'TITLE'			=> (isset($this->user->lang[$vars['lang']])) ? $this->user->lang($vars['lang']) : $vars['lang'],
 				'S_EXPLAIN'		=> $vars['explain'],
 				'TITLE_EXPLAIN'	=> $l_explain,
 				'CONTENT'		=> $content,
-			));
+			]);
 
 			unset($display_vars['vars'][$config_key]);
 		}
@@ -381,14 +390,13 @@ class acp_controller implements acp_interface
 	{
 		add_form_key('rate');
 
-		//$this->user->add_lang_ext('pico/reputation', 'reputation_common');
+		// $this->user->add_lang_ext('pico/reputation', 'reputation_common');
 
 		$submit = $this->request->is_set_post('submit');
 		$username = $this->request->variable('username', '', true);
 		$points = $this->request->variable('points', '');
 		$comment = $this->request->variable('comment', '', true);
-
-		$errors = array();
+		$errors = [];
 
 		if ($submit)
 		{
@@ -417,40 +425,36 @@ class acp_controller implements acp_interface
 
 		if ($submit && empty($errors))
 		{
-			$data = array(
+			$data = [
 				'user_id_from'			=> $this->user->data['user_id'],
 				'user_id_to'			=> $user_id_to,
 				'reputation_type'		=> 'user',
 				'reputation_item_id'	=> $user_id_to,
 				'reputation_points'		=> $points,
 				'reputation_comment'	=> $comment,
-			);
+			];
 
 			try
 			{
 				$this->reputation_manager->store_reputation($data);
-
+				meta_refresh(2, $this->u_action);
 				trigger_error($this->user->lang('RS_VOTE_SAVED'). adm_back_link($this->u_action));
 			}
-			catch (\pico\reputation\exception\base $e)
+			catch (\Exception $e)
 			{
-				// Catch exceptions and add them to errors array
-				$errors[] = $e->get_message($this->user);
+				$errors[] = $e->getMessage();
 			}
 		}
 
-		$this->template->assign_vars(array(
+		$this->template->assign_vars([
 			'S_ERROR'				=> (sizeof($errors)) ? true : false,
 			'ERROR_MSG'				=> implode('<br />', $errors),
-
 			'U_ACTION'			=> $this->u_action,
 			'U_FIND_USERNAME'	=> append_sid("{$this->phpbb_root_path}memberlist.{$this->php_ext}", 'mode=searchuser&amp;form=rate&amp;field=username&amp;select_single=true'),
-
 			'RS_USERNAME'	=> $username,
 			'RS_POINTS'		=> $points,
 			'RS_COMMENT'	=> $comment,
-			)
-		);
+		]);
 	}
 }
 
@@ -487,10 +491,10 @@ class setting_methods
 	*/
 	function post_rating($value, $key)
 	{
-		$radio_ary = array(1 => 'YES', 0 => 'NO');
+		$radio_ary = [2 => 'YES', 1 => 'RS_POST_RATING_FIRST_ONLY', 0 => 'NO'];
 
 		$option = h_radio('config[rs_post_rating]', $radio_ary, $value, 'post_rating', $key);
-		$option .= '<br /><input class="button2" type="submit" id="enable_forums_reputation" name="enable_forums_reputation" value="' . $this->user->lang('RS_ALLOW_REPUTATION_BUTTON') . '" />';
+		$option .= '<br /><input class="button2" type="submit" id="enable_forums_reputation" name="enable_forums_reputation" value="' . $this->user->lang('RS_ALLOW_REPUTATION_BUTTON') . '" style="margin-top: 8px" />';
 
 		return $option;
 	}
@@ -500,10 +504,10 @@ class setting_methods
 	*/
 	function point_type($value, $key)
 	{
-		$radio_ary = array(
+		$radio_ary = [
 			0	=> 'RS_POINT_VALUE',
 			1	=> 'RS_POINT_IMG',
-		);
+		];
 
 		$radio_text = h_radio('config[rs_point_type]', $radio_ary, $value, 'rs_point_type', $key);
 
@@ -515,7 +519,7 @@ class setting_methods
 	*/
 	function overrating($value, $key = '')
 	{
-		return $this->user->lang('RS_PREVENT_NUM') . '&nbsp;<input id="' . $key . '" type="text" size="3" maxlength="3" name="config[rs_prevent_num]" value="' . $value . '" /> ' . $this->user->lang('RS_PREVENT_PERC') . '&nbsp;<input type="text" size="3" maxlength="3" name="config[rs_prevent_perc]" value="' . $this->new_config['rs_prevent_perc'] . '" />';
+		return $this->user->lang('RS_PREVENT_NUM') . '&nbsp;<input id="' . $key . '" type="number" min="0" name="config[rs_prevent_num]" value="' . $value . '" /> ' . $this->user->lang('RS_PREVENT_PERC') . '&nbsp;<input type="number" min="0" max="99" name="config[rs_prevent_perc]" value="' . $this->new_config['rs_prevent_perc'] . '" />';
 	}
 
 	/**
@@ -523,12 +527,12 @@ class setting_methods
 	*/
 	function antimethod($value, $key)
 	{
-		$radio_ary = array(
+		$radio_ary = [
 			0	=> 'RS_SAME_USER',
 			1	=> 'RS_ALL_USERS',
-		);
+		];
 
-		$radio_text = h_radio('config[rs_anti_method]', $radio_ary, $value, 'rs_anti_method', $key);
+		$radio_text = h_radio('config[rs_anti_method]', $radio_ary, $value, 'rs_anti_method', $key, '<br />');
 
 		return $radio_text;
 	}
@@ -538,7 +542,7 @@ class setting_methods
 	*/
 	function antispam($value, $key = '')
 	{
-		return $this->user->lang('RS_POSTS') . '&nbsp;<input id="' . $key . '" type="text" size="3" maxlength="3" name="config[rs_anti_post]" value="' . $value . '" /> ' . $this->user->lang('RS_HOURS') . '&nbsp;<input type="text" size="3" maxlength="3" name="config[rs_anti_time]" value="' . $this->new_config['rs_anti_time'] . '" />';
+		return $this->user->lang('RS_POSTS') . '&nbsp;<input id="' . $key . '" type="number" min="0" name="config[rs_anti_post]" value="' . $value . '" /> ' . $this->user->lang('RS_HOURS') . '&nbsp;<input type="number" min="0" name="config[rs_anti_time]" value="' . $this->new_config['rs_anti_time'] . '" />';
 	}
 
 	/**
@@ -546,14 +550,14 @@ class setting_methods
 	*/
 	function select_comment($value, $key)
 	{
-		$radio_ary = array(
+		$radio_ary = [
 			0	=> 'RS_COMMENT_NO',
-			1	=> 'RS_COMMENT_BOTH',
 			2	=> 'RS_COMMENT_POST',
 			3	=> 'RS_COMMENT_USER',
-		);
+			1	=> 'RS_COMMENT_BOTH',
+		];
 
-		$radio_text = h_radio('config[rs_force_comment]', $radio_ary, $value, 'rs_force_comment', $key);
+		$radio_text = h_radio('config[rs_force_comment]', $radio_ary, $value, 'rs_force_comment', $key, '<br />');
 
 		return $radio_text;
 	}
@@ -563,13 +567,56 @@ class setting_methods
 	*/
 	function toplist_direction($value, $key)
 	{
-		$radio_ary = array(
+		$radio_ary = [
 			0	=> 'RS_TL_HORIZONTAL',
 			1	=> 'RS_TL_VERTICAL',
-		);
+		];
 
 		$radio_text = h_radio('config[rs_toplist_direction]', $radio_ary, $value, 'rs_toplist_direction', $key);
 
 		return $radio_text;
+	}
+
+	function rs_content_widget_type($value, $key)
+	{
+		$radio_ary = [
+			2	=> 'RS_CONTENT_WIDGET_TYPE_2',
+			1	=> 'RS_CONTENT_WIDGET_TYPE_1',
+			0	=> 'RS_CONTENT_WIDGET_TYPE_0',
+		];
+
+		$radio_text = h_radio('config[rs_content_widget_type]', $radio_ary, $value, 'rs_content_widget_type', $key, '<br />');
+
+		return $radio_text;
+	}
+
+	function rs_miniprofile_widget_type($value, $key)
+	{
+		$radio_ary = [
+			2	=> 'RS_MINIPROFILE_WIDGET_TYPE_2',
+			1	=> 'RS_MINIPROFILE_WIDGET_TYPE_1',
+			0	=> 'RS_MINIPROFILE_WIDGET_TYPE_0',
+		];
+
+		$radio_text = h_radio('config[rs_miniprofile_widget_type]', $radio_ary, $value, 'rs_miniprofile_widget_type', $key, '<br />');
+
+		return $radio_text;
+	}
+
+	function rs_auc_miniprofile_double_rep($value, $key)
+	{
+		$radio_ary = [
+			0	=> 'RS_AUC_MINIPROFILE_DOUBLE_REP_0',
+			1	=> 'RS_AUC_MINIPROFILE_DOUBLE_REP_1',
+		];
+
+		$radio_text = h_radio('config[rs_auc_miniprofile_double_rep]', $radio_ary, $value, 'rs_auc_miniprofile_double_rep', $key, '<br />');
+
+		return $radio_text;
+	}
+
+	function instant_vote()
+	{
+		return $this->user->lang('RS_INSTANT_VOTE_TEXT');
 	}
 }

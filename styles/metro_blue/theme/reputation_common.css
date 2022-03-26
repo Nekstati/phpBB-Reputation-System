@@ -1,0 +1,509 @@
+#reputation-popup {
+	display: none;
+	position: fixed;
+	z-index: 50;
+	left: 0;
+	right: 0;
+	top: 150px;
+	width: 620px;
+	margin: 0 auto;
+	padding: 10px 12px;
+
+	background: white;
+	border-radius: 5px;
+	font-size: 1.1em;
+	line-height: 1.4;
+}
+@media (max-width: 700px) {
+	#reputation-popup {
+		width: auto;
+		margin: 0 5px;
+	}
+}
+@media only screen and (max-height: 500px), only screen and (max-device-width: 500px) {
+	#reputation-popup {
+		top: 25px;
+	}
+}
+
+
+#reputation-popup div.rs-message {
+	padding: 2px 3px;
+}
+#reputation-popup div.rs-message a {
+	text-decoration: underline;
+}
+
+
+/* Fix - do not show white space at the bottom of reputation popup */
+#reputation-popup div.panel {
+	margin-bottom: 0px;
+}
+
+
+#reputation-popup h3 {
+	margin: 0 0 6px;
+}
+#reputation-popup h3,
+#reputation-popup fieldset {
+	font-size: 1em;
+}
+
+
+#reputation-popup p {
+	padding: 0;
+}
+
+
+.post-reputation-list {
+	line-height: 1.3;
+	scrollbar-width: thin;
+}
+.post-reputation-list::-webkit-scrollbar {
+	-webkit-appearance: none;
+	width: 8px;
+	background: rgba(0, 0, 0, 0.06);
+}
+.post-reputation-list::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.15);
+}
+.post-reputation-list::-webkit-scrollbar-thumb:hover {
+	background: rgba(0, 0, 0, 0.28);
+}
+#reputation-popup .post-reputation-list {
+	max-height: 550px;
+	max-height: calc(100vh - 230px);
+	overflow: auto;
+	clear: both;
+}
+@media only screen and (max-height: 500px), only screen and (max-device-width: 500px) {
+	#reputation-popup .post-reputation-list {
+		max-height: 420px;
+		max-height: calc(100vh - 160px);
+	}
+}
+.rs-popup-close {
+	float: right;
+}
+
+
+.footer-popup {
+	padding: 8px 0 0 0;
+	overflow: hidden;
+}
+
+
+.progress-bar {
+	width: 100%;
+	height: 10px;
+	margin: 0 0 5px;
+	border-radius: 3px;
+	background: #a4bdcb;
+	background: linear-gradient(to right, #dc4a5b 0%, #ffb489 8%, #fcfaba 18%, #54d077 70%);
+}
+.empty-progress {
+	float: right;
+	height: 10px;
+	background: white;
+}
+
+
+.reputation-list-item {
+	display: block;
+	margin: 5px 0;
+	padding: 6px 8px;
+	overflow: hidden;
+	border-radius: 5px;
+}
+.reputation-list-item:first-child {
+	margin-top: 0;
+}
+.reputation-list-item:last-child {
+	margin-bottom: 0;
+}
+.rs-bg-positive {
+	background: #e5f7e5;
+}
+.rs-bg-negative {
+	background: #ffebeb;
+}
+.reputation-avatar + .reputation-detail {
+	margin-left: 70px;
+}
+.reputation-lastvotes .reputation-avatar + .reputation-detail {
+	margin-left: 152px;
+}
+@media (max-width: 700px) {
+	.reputation-lastvotes .reputation-avatar {
+		float: none;
+	}
+	.reputation-lastvotes .reputation-avatar img {
+		width: 40px;
+	}
+	.reputation-lastvotes .reputation-avatar + .reputation-detail {
+		margin-left: 0;
+		padding-top: 5px;
+	}
+}
+.reputation-avatar {
+	float: left;
+	color: #7c889b;
+}
+.reputation-avatar img {
+	width: 60px;
+	height: initial;
+}
+.reputation-detail {
+	overflow: hidden;
+	color: #345;
+}
+#reputation-popup .reputation-avatar + .reputation-detail {
+	margin-left: 50px;
+}
+#reputation-popup .reputation-avatar img,
+.reputation-toplist .reputation-avatar img {
+	width: 40px;
+	height: initial;
+}
+.reputation-rating {
+	display: block;
+	float: right;
+	padding-right: 3px;
+	font-weight: bold;
+	font-size: 1.3em;
+	line-height: 14px;
+	letter-spacing: -1px;
+}
+.reputation-rating.positive.image,
+.reputation-rating.negative.image {
+	width: 16px;
+	height: 16px;
+	background-repeat: no-repeat;
+	font-size: 0px;
+}
+.reputation-rating.positive.image {
+	background-image: url("./images/pos.png");
+}
+.reputation-rating.negative.image {
+	background-image: url("./images/neg.png");
+}
+.reputation-action {
+	margin-top: 3px;
+	margin-bottom: 5px;
+}
+#reputation-popup .reputation-action {
+	margin: 0;
+}
+.type-title span {
+	font-weight: bold;
+}
+.comment_message {
+	float: left;
+	display: block;
+	margin-top: 3px;
+	padding: 1px 6px 2px;
+	background-color: white;
+	border-radius: 5px;
+}
+.reputation-delete,
+.reputation-clear {
+	opacity: 0.6;
+}
+.reputation-delete.rightside {
+	margin-right: 7px;
+}
+.footer-popup .reputation-clear {
+	float: right;
+}
+.reputation-delete:hover {
+	opacity: 1.0;
+}
+.reputation-rating.positive {
+	color: #00ab00;
+}
+.reputation-rating.negative {
+	color: #D31141;
+}
+.rs-sorting {
+	float: left;
+}
+.rs-sorting-link-active {
+	background: #e1ebf2;
+	padding: 0 5px 2px;
+	border-radius: 4px;
+}
+.rs-sorting-asc .rs-sorting-link-active::before {
+	content: "\f0d7";
+	font-family: FontAwesome;
+	padding: 0 2px 0 0;
+	font-size: 14px;
+	line-height: 14px;
+}
+.rs-sorting-dsc .rs-sorting-link-active::before {
+	content: "\f0d8";
+	font-family: FontAwesome;
+	padding: 0 2px 0 0;
+	font-size: 14px;
+	line-height: 14px;
+}
+.reputation-time {
+	opacity: 0.6;
+}
+
+
+/* details.html */
+.user-reputation-profile .rs-avatar {
+	margin: 0 5px 5px 0;
+}
+.user-reputation-profile .details {
+	float: none;
+	min-width: 300px;
+	overflow: hidden;
+}
+@media (min-width: 800px) {
+	.user-reputation-profile {
+		float: left;
+		width: 38%;
+	}
+	.user-reputation-list {
+		float: right;
+		width: 61%;
+	}
+}
+.reputation {
+	display: inline-block;
+	padding: 1px 4px 2px 4px;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	text-align: center;
+	font-weight: bold;
+	color: #fff;
+}
+.reputation.positive {
+	background: #48a448;
+}
+.reputation.negative {
+	background: #E65579;
+}
+.reputation.neutral {
+	background: #a6a6a6;
+}
+.user-reputation-profile .rs-explain-vote-points {
+	opacity: 0.6;
+}
+
+
+/* userdetails.html, postdetails.html, vote points explain - opened in a new tab (not Ajax) */
+.rs-details-body .page-body {
+	font-size: 1.1em;
+}
+
+
+.rs-explain-vote-points-table {
+	line-height: 1.1em;
+}
+.rs-explain-vote-points-table td {
+	padding: 3px 0;
+}
+.rs-explain-vote-points-table td:first-child {
+	padding-right: 10px;
+	text-align: right;
+}
+
+
+dl.details dt.rs-profile-title {
+	height: 22px;
+	display: flex;
+	align-items: center;
+}
+@media (min-width: 501px) {
+	dl.details dt.rs-profile-title {
+		justify-content: end;
+	}
+}
+
+
+.reputation-toplist {
+	overflow: hidden;
+	margin: 0 0 15px;
+	padding: 5px 8px;
+}
+.reputation-lastvotes {
+
+}
+@media (min-width: 801px) {
+	.reputation-toplist {
+		float: right;
+		width: 25%;
+	}
+	.reputation-lastvotes {
+		float: left;
+		width: 72%;
+	}
+}
+.reputation-toplist-item {
+	overflow: hidden;
+	margin: 0 0 8px;
+	font-size: 1.1em;
+}
+@media (max-width: 800px) {
+	.reputation-toplist-item {
+		width: 50%;
+		float: left;
+	}
+}
+.reputation-toplist .reputation-avatar {
+	margin: 0 8px 0 0;
+}
+.reputation-toplist .reputation {
+	margin: 4px 0 0;
+}
+.reputation-toplist .reputation-count {
+	float: left;
+	width: 16px;
+	margin: 0 8px 0 0;
+	line-height: 39px;
+	text-align: center;
+}
+
+
+/* BUTTONS */ 
+
+.rs-miniprofile-block {
+	margin-top: 5px;
+}
+
+.button.rs-widget {
+	padding: 0;
+}
+/* To make the minirofile widget visible on mobile phones in vertical orientation, we have its clone in the .post-buttons block. It is hidden on wide screens. */
+@media (max-width: 700px) {
+	.button.rs-widget.rs-widget-clone + .button.rs-widget {
+		display: none;
+	}
+}
+@media (min-width: 701px) {
+	.button.rs-widget.rs-widget-clone {
+		display: none;
+	}
+}
+
+/* Fat icons - fa-chevron-up, fa-chevron-down */
+	/*
+	.rate-bad-icon {
+		padding: 2px 1px 2px 3px;
+		float: left;
+	}
+	.rate-good-icon {
+		padding: 2px 3px 2px 1px;
+		float: left;
+	}
+	.post-reputation {
+		padding: 2px 8px 2px 7px;
+		float: left;
+		letter-spacing: -1px;
+	}
+	.post-reputation.signed {
+		padding: 2px 8px 2px 5px;
+	}
+	.post-reputation:first-child {
+		padding: 2px 8px 2px 7px;
+	}
+	*/
+
+/* Slim icons - fa-angle-up, fa-angle-down */
+	.rate-bad-icon,
+	.rate-good-icon,
+	.post-reputation {
+		float: left;
+	}
+	.rate-bad-icon i.icon,
+	.rate-good-icon i.icon {
+		width: 24px;
+		font-size: 22px;
+		vertical-align: middle;
+	}
+	.rate-good-icon i.icon {
+		line-height: 21px;
+	}
+	.post-reputation {
+		padding: 0px 6px 0px 4px;
+		line-height: 22px;
+		letter-spacing: -1px;
+	}
+	.post-reputation.signed:not(:first-child) {
+		padding: 0px 6px 0px 1px;
+	}
+	.post-reputation:first-child:not(:only-child):not(.signed) {
+		/* Negative votes disabled */
+		padding: 0px 6px 0px 7px;
+	}
+	.post-reputation:only-child:not(.signed) {
+		/* Vote buttons disabled */
+		padding: 0px 7px 0px 6px;
+		min-width: 12px;
+	}
+	.post-reputation.signed:only-child {
+		padding: 0px 6px 0px 4px;
+		min-width: 16px;
+	}
+
+a.post-reputation:hover,
+a.post-reputation:focus,
+a.post-reputation:active {
+	text-decoration: none;
+}
+.post-reputation.positive {
+	color: #01a611;
+}
+.post-reputation.negative {
+	color: #cd192e;
+}
+.post-reputation.neutral {
+	color: #8f8f8f;
+}
+.button:hover .rate-good-icon i.icon {
+	color: #01a611;
+}
+.button:hover .rate-bad-icon i.icon {
+	color: #cd192e;
+}
+/*
+.rated_good,
+.rated_bad,
+.own {
+	opacity: 0.5;
+}
+*/
+
+
+/* Fixes for Green-Style */
+/*
+#reputation-popup fieldset dt {
+	float: left;
+}
+#reputation-popup div.panel {
+	margin: 0;
+}
+*/
+
+
+/* Fixes for metro_blue style */
+.button.rs-widget {
+	background: none;
+}
+.post-buttons .button.rs-widget {
+	margin-right: 10px;
+}
+.post-buttons .button.rs-widget i.icon {
+	font-size: 20px;
+	line-height: 14px;
+	/* vertical-align: -3px; */
+	height: 20px;
+}
+.post-buttons .post-reputation {
+	height: 24px;
+}
+a.post-reputation {
+	font-weight: bold;
+}

@@ -12,9 +12,6 @@ namespace pico\reputation\event;
 
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
-/**
-* Event listener
-*/
 class viewtopic_listener implements EventSubscriberInterface
 {
 	/** @var \phpbb\auth\auth */
@@ -38,6 +35,8 @@ class viewtopic_listener implements EventSubscriberInterface
 	/** @var string The table we use to store reputations */
 	protected $reputations_table;
 
+	protected $in_auction;
+
 	/**
 	* Constructor
 	*
@@ -60,6 +59,8 @@ class viewtopic_listener implements EventSubscriberInterface
 		$this->user = $user;
 		$this->reputation_helper = $reputation_helper;
 		$this->reputations_table = $reputations_table;
+
+		$this->db = $GLOBALS['db'];
 	}
 
 	/**
@@ -71,14 +72,14 @@ class viewtopic_listener implements EventSubscriberInterface
 	*/
 	static public function getSubscribedEvents()
 	{
-		return array(
+		return [
 			'core.viewtopic_assign_template_vars_before'	=> 'assign_reputation',
 			'core.viewtopic_get_post_data'					=> 'modify_sql_array',
 			'core.viewtopic_post_rowset_data'				=> 'post_rowset_reputation_data',
 			'core.viewtopic_cache_guest_data'				=> 'cache_reputation_data',
 			'core.viewtopic_cache_user_data'				=> 'cache_reputation_data',
 			'core.viewtopic_modify_post_row'				=> 'post_row_reputation',
-		);
+		];
 	}
 
 	/**
@@ -94,14 +95,21 @@ class viewtopic_listener implements EventSubscriberInterface
 		{
 			$topic_data = $event['topic_data'];
 
-			// Author note
-			//	Post rating is not allowed in the global announcements
-			//	because there is no option to set proper permissions for such topics
-			$this->template->assign_vars(array(
-				'S_FORUM_REPUTATION'	=> ($topic_data['reputation_enabled'] && $this->config['rs_post_rating'] && ($topic_data['topic_type'] != POST_GLOBAL)) ? true : false,
+			// $auc_forumlist = (isset($this->config['auc_forumlist'])) ? json_decode($this->config['auc_forumlist']) : [];
+			// $this->in_auction = in_array($event['forum_id'], $auc_forumlist);
+			$this->in_auction = false;
 
-				'U_REPUTATION_REFERER'	=> $this->helper->get_current_url(),
-			));
+			// Post rating is not allowed in the global announcements
+			// because there is no option to set proper permissions for such topics
+			$this->template->assign_vars([
+				'S_FORUM_REPUTATION'			=> ($topic_data['reputation_enabled'] && $this->config['rs_post_rating'] && ($topic_data['topic_type'] != POST_GLOBAL)) ? true : false,
+
+				'RS_CONTENT_WIDGET_TYPE'		=> $this->config['rs_content_widget_type'],
+				'RS_MINIPROFILE_WIDGET_TYPE'	=> $this->config['rs_miniprofile_widget_type'],
+
+				'RS_AUC'						=> $this->in_auction,
+				// 'RS_AUC_MINIPROFILE_DOUBLE_REP'	=> $this->config['rs_auc_miniprofile_double_rep'],
+			]);
 		}
 	}
 
@@ -114,18 +122,20 @@ class viewtopic_listener implements EventSubscriberInterface
 	*/
 	public function modify_sql_array($event)
 	{
-		// Modify sql array when the extension and its post rating are enabled
-		// Otherwise do nothing
 		if ($this->config['rs_enable'] && $this->config['rs_post_rating'])
 		{
+			$rep_mgr = $GLOBALS['phpbb_container']->get('pico.reputation.manager');
+			// $post_type_ids = [$rep_mgr->get_reputation_type_id('post'), $rep_mgr->get_reputation_type_id('auc_post_buyer'), $rep_mgr->get_reputation_type_id('auc_post_seller')];
+			$post_type_ids = [$rep_mgr->get_reputation_type_id('post')];
+
 			$sql_ary = $event['sql_ary'];
 
-			$sql_ary['LEFT_JOIN'][] = array(
-				'FROM'	=> array($this->reputations_table => 'r'),
+			$sql_ary['LEFT_JOIN'][] = [
+				'FROM'	=> [$this->reputations_table => 'r'],
 				'ON'	=> 'r.reputation_item_id = p.post_id
-					AND r.reputation_type_id = 1
-					AND r.user_id_from =' . $this->user->data['user_id'],
-			);
+					AND ' . $this->db->sql_in_set('r.reputation_type_id', $post_type_ids) . '
+					AND r.user_id_from = ' . $this->user->data['user_id'],
+			];
 			$sql_ary['SELECT'] .= ', r.reputation_id, r.reputation_points';
 
 			$event['sql_ary'] = $sql_ary;
@@ -143,16 +153,11 @@ class viewtopic_listener implements EventSubscriberInterface
 	{
 		if ($this->config['rs_enable'] && $this->config['rs_post_rating'])
 		{
-			$rowset_data = $event['rowset_data'];
-			$row = $event['row'];
-
-			$rowset_data = array_merge($rowset_data, array(
-				'post_reputation'	=> $row['post_reputation'],
-				'user_voted'		=> $row['reputation_id'],
-				'reputation_points'	=> $row['reputation_points'],
-			));
-
-			$event['rowset_data'] = $rowset_data;
+			$event['rowset_data'] += [
+				'post_reputation'	=> $event['row']['post_reputation'],
+				'user_voted'		=> $event['row']['reputation_id'],
+				'reputation_points'	=> $event['row']['reputation_points'],
+			];
 		}
 	}
 
@@ -167,9 +172,11 @@ class viewtopic_listener implements EventSubscriberInterface
 	{
 		if ($this->config['rs_enable'] && $this->config['rs_post_rating'])
 		{
-			$user_cache_data = $event['user_cache_data'];
-			$user_cache_data['reputation'] = $event['row']['user_reputation'];
-			$event['user_cache_data'] = $user_cache_data;
+			$event['user_cache_data'] += [
+				'user_reputation'				=> $event['row']['user_reputation'],
+				// 'user_reputation_auc_buyer'		=> $event['row']['user_reputation_auc_buyer'],
+				// 'user_reputation_auc_seller'	=> $event['row']['user_reputation_auc_seller'],
+			];
 		}
 	}
 
@@ -182,16 +189,18 @@ class viewtopic_listener implements EventSubscriberInterface
 	*/
 	public function post_row_reputation($event)
 	{
-		if ($this->config['rs_enable'] && $this->config['rs_post_rating'])
+		if (!$this->config['rs_enable'])
+		{
+			return;
+		}
+
+		if ($this->config['rs_post_rating'] == 2 || ($this->config['rs_post_rating'] == 1 && $event['post_row']['S_FIRST_POST']))
 		{
 			$row = $event['row'];
-			$user_poster_data = $event['user_poster_data'];
-			$post_row = $event['post_row'];
+			$poster = $event['user_poster_data'];
 			$post_id = $row['post_id'];
 			$poster_id = $event['poster_id'];
 
-			// Check post status and return its status as class
-			//	Is it own post, rated good or rated bad?
 			if ($this->user->data['user_id'] == $poster_id)
 			{
 				$post_vote_class = 'own';
@@ -201,27 +210,35 @@ class viewtopic_listener implements EventSubscriberInterface
 				$post_vote_class = $row['user_voted'] ? (($row['reputation_points'] > 0) ? 'rated_good' : 'rated_bad') : '';
 			}
 
-			$post_row = array_merge($post_row, array(
-				'S_VIEW_REPUTATION'		=> ($this->auth->acl_get('u_rs_view')) ? true : false,
-				'S_RATE_POST'			=> ($this->auth->acl_get('f_rs_rate', $row['forum_id']) && $this->auth->acl_get('u_rs_rate_post') && $poster_id != ANONYMOUS) ? true : false,
-				'S_RATE_POST_NEGATIVE'	=> ($this->auth->acl_get('f_rs_rate_negative', $row['forum_id']) && $this->config['rs_negative_point']) ? true : false,
+			$poster_rep = ($this->in_auction) ? ($poster['user_reputation_auc_buyer'] + $poster['user_reputation_auc_seller']) : $poster['user_reputation'];
+			$poster_rep_common = $poster['user_reputation'];
+			$auc_param = ($this->in_auction) ? ['auc' => true] : [];
 
-				'RS_RATE_POST_NEGATIVE'	=> $row['user_voted'] ? $this->user->lang('RS_POST_RATED') : $this->user->lang('RS_RATE_POST_NEGATIVE'),
-				'RS_RATE_POST_POSITIVE'	=> $row['user_voted'] ? $this->user->lang('RS_POST_RATED') : $this->user->lang('RS_RATE_POST_POSITIVE'),
-				'RS_POST_REPUTATION'	=> $row['user_voted'] ? $this->user->lang('RS_POST_RATED') : $this->user->lang('RS_POST_REPUTATION'),
+			$event['post_row'] += [
+				'S_VIEW_REPUTATION'			=> ($this->auth->acl_get('u_rs_view')) ? true : false,
+				'S_RATE_POST'				=> ($this->auth->acl_get('f_rs_rate', $row['forum_id']) && $this->auth->acl_get('u_rs_rate_post') && $poster_id != ANONYMOUS) ? true : false,
+				'S_RATE_POST_NEGATIVE'		=> ($this->auth->acl_get('f_rs_rate_negative', $row['forum_id']) && $this->config['rs_negative_point']) ? true : false,
 
-				'U_RATE_POST_POSITIVE'		=> $this->helper->route('reputation_post_rating_controller', array('mode' => 'positive', 'post_id' => $post_id)),
-				'U_RATE_POST_NEGATIVE'		=> $this->helper->route('reputation_post_rating_controller', array('mode' => 'negative', 'post_id' => $post_id)),
-				'U_VIEW_POST_REPUTATION'	=> $this->helper->route('reputation_post_details_controller', array('post_id' => $post_id)),
-				'U_VIEW_USER_REPUTATION'	=> $this->helper->route('reputation_details_controller', array('uid' => $poster_id)),
+				'U_RATE_POST_POSITIVE'		=> $this->helper->route('reputation_post_rating_controller', ['mode' => 'positive', 'post_id' => $post_id] + $auc_param),
+				'U_RATE_POST_NEGATIVE'		=> $this->helper->route('reputation_post_rating_controller', ['mode' => 'negative', 'post_id' => $post_id] + $auc_param),
+				'U_VIEW_POST_REPUTATION'	=> $this->helper->route('reputation_post_details_controller', ['post_id' => $post_id] + $auc_param),
+				'POST_REPUTATION'			=> $this->format_number($row['post_reputation']),
+				'POST_REPUTATION_CLASS'		=> $this->reputation_helper->reputation_class($row['post_reputation']),
+				'POST_VOTE_CLASS'			=> $post_vote_class,
 
-				'POST_REPUTATION'		=> $row['post_reputation'],
-				'POST_REPUTATION_CLASS'	=> $this->reputation_helper->reputation_class($row['post_reputation']),
-				'POST_VOTE_CLASS'		=> $post_vote_class,
-				'USER_REPUTATION'		=> $user_poster_data['reputation'],
-			));
+				'U_VIEW_USER_REPUTATION'	=> $this->helper->route('reputation_user_details_controller', ['uid' => $poster_id] + $auc_param),
+				'USER_REPUTATION'			=> $this->format_number($poster_rep),
+				'USER_REPUTATION_CLASS'		=> $this->reputation_helper->reputation_class($poster_rep),
 
-			$event['post_row'] = $post_row;
+				'U_VIEW_USER_REPUTATION_COMMON'		=> $this->helper->route('reputation_user_details_controller', ['uid' => $poster_id]),
+				'USER_REPUTATION_COMMON'			=> $this->format_number($poster['user_reputation']),
+				'USER_REPUTATION_CLASS_COMMON'		=> $this->reputation_helper->reputation_class($poster['user_reputation']),
+			];
 		}
+	}
+
+	private function format_number($number)
+	{
+		return ($this->config['rs_negative_point'] && $number > 0 ? '+' : '') . $number;
 	}
 }

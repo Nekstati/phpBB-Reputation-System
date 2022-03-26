@@ -1,0 +1,35 @@
+<!-- IF S_REPUTATION -->
+
+	<div id="reputation-popup" data-title="{L_REPUTATION}"></div>
+
+	<!-- IF S_VIEWTOPIC -->
+	<script>
+		// Postbody: make rep buttons most left
+		for (let b of document.querySelectorAll('.post-buttons')) {
+			let w = b.querySelectorAll('.rs-widget');
+			for (let i = w.length - 1; i >= 0; i--) {
+				if (w[i].previousElementSibling) {
+					b.prepend(w[i]);
+				}
+			}
+		}
+	</script>
+	<!-- ENDIF -->
+
+	<script>
+		// Top menu: add rep link
+		{
+			let usersLink = document.querySelector('#quick-links a[href*="memberlist.php"]');
+			if (usersLink && usersLink.parentNode.nodeName == 'LI') {
+				usersLink.parentNode.insertAdjacentHTML('afterend', `<li>
+					<a href="{{ AUC_IN_AUCTION ? RS_URL_LASTVOTES_AUC : RS_URL_LASTVOTES }}" role="menuitem">
+						<i class="icon fa-thumbs-up fa-fw" aria-hidden="true"></i><span>{{ lang(AUC_IN_AUCTION ? 'RS_LASTVOTES_AUC' : 'RS_LASTVOTES') }}</span>
+					</a>
+				</li>`);
+			}
+		}
+	</script>
+
+	<!-- INCLUDEJS @pico_reputation/reputation.js -->
+
+<!-- ENDIF -->

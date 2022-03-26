@@ -1,0 +1,15 @@
+<!-- IF not S_IS_AJAX -->
+<!-- INCLUDE overall_header.html -->
+<!-- ENDIF -->
+
+{% if TITLE_H2 %}<h2>{TITLE_H2}</h2>{% endif %}
+{% if TITLE_H3 %}<h3>{TITLE_H3}</h3>{% endif %}
+
+<div class="{CONTAINER_CLASS}">
+{HTML}
+</div>
+
+<!-- IF not S_IS_AJAX -->
+<br />
+<!-- INCLUDE overall_footer.html -->
+<!-- ENDIF -->

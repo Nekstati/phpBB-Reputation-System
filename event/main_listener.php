@@ -12,9 +12,6 @@ namespace pico\reputation\event;
 
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
-/**
-* Event listener
-*/
 class main_listener implements EventSubscriberInterface
 {
 	/** @var \phpbb\config\config */
@@ -46,10 +43,10 @@ class main_listener implements EventSubscriberInterface
 	*/
 	static public function getSubscribedEvents()
 	{
-		return array(
+		return [
 			'core.common'		=> 'reputation_status',
 			'core.user_setup'	=> 'load_language_on_setup',
-		);
+		];
 	}
 
 	/**
@@ -60,9 +57,9 @@ class main_listener implements EventSubscriberInterface
 	*/
 	public function reputation_status()
 	{
-		$this->template->assign_vars(array(
-			'S_REPUTATION'	=> $this->config['rs_enable'] ? true : false,
-		));
+		$this->template->assign_vars([
+			'S_REPUTATION'	=> $this->config['rs_enable'],
+		]);
 	}
 
 	/**
@@ -74,11 +71,16 @@ class main_listener implements EventSubscriberInterface
 	*/
 	public function load_language_on_setup($event)
 	{
-		$lang_set_ext = $event['lang_set_ext'];
-		$lang_set_ext[] = array(
-			'ext_name' => 'pico/reputation',
-			'lang_set' => 'reputation_common',
-		);
-		$event['lang_set_ext'] = $lang_set_ext;
+		$event['lang_set_ext'] = array_merge($event['lang_set_ext'], [[
+			'ext_name'		=> 'pico/reputation',
+			'lang_set'		=> 'reputation_common',
+		]]);
+
+		$router = $GLOBALS['phpbb_container']->get('routing.helper');
+
+		$this->template->assign_vars([
+			'RS_URL_LASTVOTES'		=> $router->route('reputation_lastvotes_controller'),
+			// 'RS_URL_LASTVOTES_AUC'	=> $router->route('reputation_lastvotes_controller', ['auc' => true]),
+		]);
 	}
 }

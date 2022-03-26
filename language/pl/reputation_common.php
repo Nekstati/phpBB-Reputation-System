@@ -8,9 +8,8 @@
 *
 */
 
-/**
-* DO NOT CHANGE
-*/
+// To be included in all board pages
+
 if (!defined('IN_PHPBB'))
 {
 	exit;
@@ -18,42 +17,33 @@ if (!defined('IN_PHPBB'))
 
 if (empty($lang) || !is_array($lang))
 {
-	$lang = array();
+	$lang = [];
 }
 
-// DEVELOPERS PLEASE NOTE
-//
-// All language files should use UTF-8 as their encoding and the files must not contain a BOM.
-//
-// Placeholders can now contain order information, e.g. instead of
-// 'Page %s of %s' you can (and should) write 'Page %1$s of %2$s', this allows
-// translators to re-order the output of data while ensuring it remains correct
-//
-// You do not need this where single placeholders are used, e.g. 'Message %d' is fine
-// equally where a string contains only two placeholders which are used to wrap text
-// in a url you again do not need to specify an order e.g., 'Click %sHERE%s' is fine
-//
-// Some characters you may want to copy&paste:
-// ’ » “ ” …
-//
+$lang = array_merge($lang, [
+	'REPUTATION'					=> 'Reputacja',
 
-$lang = array_merge($lang, array(
-	'REPUTATION'		=> 'Reputacja',
+	'RS_USER_REPUTATION'			=> 'Reputacja użytkownika',
+	'RS_POST_REPUTATION'			=> 'Reputacji za post',
+	// 'RS_POST_RATED'				=> 'You have rated this post',
+	'RS_RATE_POSITIVE'				=> 'Oceń pozytywnie',
+	'RS_RATE_NEGATIVE'				=> 'Oceń negatywnie',
 
-	'RS_DISABLED'		=> 'Administrator forum wyłączył tę funkcjonalność.',
+	'NOTIFICATION_TYPE_REPUTATION'		=> 'Ktoś przyznał Ci punkt reputacji',
+	'NOTIFICATION_RATE_POST_POSITIVE'	=> '<strong>Otrzymano poztytwny punkt reputacji</strong> od %s za post',
+	'NOTIFICATION_RATE_POST_NEGATIVE'	=> '<strong>Otrzymano negatywny punkt reputacji</strong> od %s za post',
+	'NOTIFICATION_RATE_USER_POSITIVE'	=> '<strong>Otrzymano poztytwny punkt reputacji</strong> od %s',
+	'NOTIFICATION_RATE_USER_NEGATIVE'	=> '<strong>Otrzymano negatywny punkt reputacji</strong> od %s',
 
-	'RS_COMMENT'		=> 'Komentarz',
-	'RS_POINTS'			=> 'Punkty',
+	'EXCEPTION_FIELD_MISSING'		=> 'brakuje wymaganego pola "%1$s"',
+	'EXCEPTION_INVALID_TYPE'		=> 'typ reputacji nie istnieje "%1$s"',
+	'EXCEPTION_OUT_OF_BOUNDS'		=> 'Pole `%1$s` odbiera dane poza jego granicami',
 
-	'RS_POST_REPUTATION'	=> 'Reputacja posta',
-	'RS_POST_RATED'			=> 'Już oceniłeś ten post',
-	'RS_RATE_POST_POSITIVE'	=> 'Oceń pozytywnie',
-	'RS_RATE_POST_NEGATIVE'	=> 'Oceń negatywnie',
-	'RS_RATE_USER'			=> 'Oceń użytkownika',
-	'RS_VIEW_DETAILS'		=> 'Wyświetl detale',
+	'RS_TOPLIST'					=> 'Toplista reputacji',
+	'RS_NO_USERS'					=> 'brak użytkowników do wyświetlenia',
+	'RS_LASTVOTES'					=> 'Reputacja użytkowników',
+	'RS_LASTVOTES_TOP'				=> 'Toplista reputacji',
 
-	'NOTIFICATION_TYPE_REPUTATION'		=> 'Ktoś podarował Ci punkt reputacji',
-	'NOTIFICATION_RATE_POST_POSITIVE'	=> '%s <strong>ocenił(a) pozytywnie</strong> post',
-	'NOTIFICATION_RATE_POST_NEGATIVE'	=> '%s <strong>ocenił(a) negatywnie</strong> post',
-	'NOTIFICATION_RATE_USER'			=> ' %s<strong>ocenił(a)</strong>',
-));
+	'RS_USER_REPUTATION_COMMON'		=> 'Reputacja użytkownika',
+	'RS_REPUTATION_COMMON'			=> 'Reputacja użytkownika',
+]);

@@ -1,6 +1,8 @@
 phpBB-Reputation-System
 =======================
 
+**This is the fork of the [Reputation System by Pico/jbreu](https://github.com/jbreu/phpBB-Reputation-System), but with heavily rewritten style and partially changed logic. The original extension can be updated to this one, but not vice versa.**
+
 A full reputation (karma) system for phpBB3.3, with adjustable reputation settings.
 
 ## Features
@@ -27,17 +29,31 @@ You can install this on the latest copy of phpBB ([phpBB 3.3](https://github.com
 2. Look for `Reputation System` under the Enabled Extensions list, and click its `Disable` link.
 3. To permanently uninstall, click `Delete Data` and then delete the `/ext/pico/reputation` folder.
 
-## To-Do List
-- [x] Link to post on details pages
-- [x] Group reputation power
-- [x] Delete reputation
-- [x] Clear user/post reputations
-- [ ] ACP synchronization functions
-- [ ] MCP reputation modules
-- [ ] UCP reputation modules
-- [x] Notifications
-- [ ] Responsive design
-- [ ] Reputation ranks
-
 ## License
 [GNU General Public License v2](http://opensource.org/licenses/GPL-2.0)
+
+## Screenshots
+
+### Miniprofile buttons
+
+![Miniprofile buttons](/doc/miniprofile_widget.png)
+
+### Post buttons (option)
+
+![Post buttons (option)](/doc/post_widget.png)
+
+### User reputation page
+
+![User reputation page](/doc/user_rep.png)
+
+### Summary reputation page
+
+![Summary reputation page](/doc/all_reps.png)
+
+### Positive rating popup
+
+![Positive rating popup](/doc/positive.png)
+
+### Negative rating popup
+
+![Negative rating popup](/doc/negative.png)

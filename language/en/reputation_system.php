@@ -8,9 +8,6 @@
 *
 */
 
-/**
-* DO NOT CHANGE
-*/
 if (!defined('IN_PHPBB'))
 {
 	exit;
@@ -18,99 +15,132 @@ if (!defined('IN_PHPBB'))
 
 if (empty($lang) || !is_array($lang))
 {
-	$lang = array();
+	$lang = [];
 }
 
-// DEVELOPERS PLEASE NOTE
-//
-// All language files should use UTF-8 as their encoding and the files must not contain a BOM.
-//
-// Placeholders can now contain order information, e.g. instead of
-// 'Page %s of %s' you can (and should) write 'Page %1$s of %2$s', this allows
-// translators to re-order the output of data while ensuring it remains correct
-//
-// You do not need this where single placeholders are used, e.g. 'Message %d' is fine
-// equally where a string contains only two placeholders which are used to wrap text
-// in a url you again do not need to specify an order e.g., 'Click %sHERE%s' is fine
-//
-// Some characters for use
-// ’ » “ ” …
+$lang = array_merge($lang, [
+	'RS_DISABLED'				=> 'Administrator has disabled this feature.',
 
-$lang = array_merge($lang, array(
-	'RS_TITLE'			=> 'Reputation System',
+	'RS_COMMENT'				=> 'Comment',
+	'RS_COMMENT_OPTIONAL'		=> 'Comment (optional)',
+	'RS_COMMENT_REQUIRED'		=> 'Comment (required)',
+	'RS_POINTS'					=> 'Points',
+	'RS_POINTS_SUM'				=> 'points',
+	'RS_POINTS_TO_GIVE'			=> 'How many points',
 
-	'RS_ACTION'					=> 'Action',
+	'RS_SORT_BY'				=> 'Sort by',
+	'RS_DELETE_VOTE'			=> 'Delete your vote',
+	'RS_POST_BY'				=> 'Post author:',
+	'RS_POST_GIVE_POSITIVE'		=> 'Rate post positive',
+	'RS_POST_GIVE_NEGATIVE'		=> 'Rate post negative',
+	'RS_USER_GIVE_POSITIVE'		=> 'Rate user positive',
+	'RS_USER_GIVE_NEGATIVE'		=> 'Rate user negative',
+
+	'RS_ACTION'					=> 'Type',
 	'RS_DATE'					=> 'Date',
-	'RS_DETAILS'				=> 'User reputation details',
 	'RS_FROM'					=> 'From',
-	'RS_LIST'					=> 'User reputation points list',
-	'RS_POST_COUNT'				=> 'Points for post',
-	'RS_POST_REPUTATION'		=> 'Post reputation',
-	'RS_USER_COUNT'				=> 'Points from user',
-	'RS_POSITIVE_COUNT'			=> 'Positive',
-	'RS_NEGATIVE_COUNT'			=> 'Negative',
-	'RS_STATS'					=> 'Statistics',
+	'RS_FROM_USER'				=> 'From user',
+	'RS_POST_COUNT'				=> 'Points for posts',
+	'RS_USER_COUNT'				=> 'Points from user profile',
+	'RS_COUNT'					=> 'Votes',
+	'RS_POSITIVE_COUNT'			=> 'Positive votes',
+	'RS_NEGATIVE_COUNT'			=> 'Negative votes',
+	'RS_STATS'					=> 'Statistics of received points',
 	'RS_WEEK'					=> 'Last week',
 	'RS_MONTH'					=> 'Last month',
 	'RS_6MONTHS'				=> 'Last 6 months',
 	'RS_POINT'					=> 'Point',
-	'RS_POINTS_TITLE'			=> array(
-		1	=> 'Point: %d',
-		2	=> 'Points: %d',
-	),
+	'RS_POINTS_TITLE'			=> [
+		1	=> ' point',
+		2	=> ' points',
+	],
 	'RS_POST_DELETE'			=> 'Post deleted',
-	'RS_POWER'					=> 'Reputation power',
+	'RS_POWER'					=> 'Voting points',
 	'RS_TIME'					=> 'Time',
 	'RS_TO'						=> 'to',
 	'RS_TO_USER'				=> 'To',
-	'RS_VOTING_POWER'			=> 'Remaining power points',
+	'RS_VOTING_POWER_LEFT'		=> '%1$d total, %2$d available',
 
-	'RS_EMPTY_DATA'				=> 'There are no reputation points.',
+	'RS_EMPTY_DATA'				=> 'There are no votes.',
 	'RS_NA'						=> 'n/a',
 	'RS_NO_ID'					=> 'No ID',
-	'RS_NO_REPUTATION'			=> 'There is no such reputation.',
+	'RS_NO_REPUTATION'			=> 'There is no reputation data.',
 
-	'NO_REPUTATION_SELECTED'	=> 'You did not select reputation point.',
+	'RS_POINTS_DELETED'			=> [
+		1	=> 'The vote has been deleted.',
+		2	=> 'The votes have been deleted.',
+	],
 
-	'RS_REPUTATION_DELETE_CONFIRM'	=> 'Do you really want to delete this reputation?',
-	'RS_REPUTATIONS_DELETE_CONFIRM'	=> 'Do you really want to delete these reputation?',
-	'RS_POINTS_DELETED'			=> array(
-		1	=> 'The reputation has been deleted.',
-		2	=> 'The reputations have been deleted.',
-	),
-
-	'RS_CLEAR_POST'				=> 'Clear post reputation',
-	'RS_CLEAR_POST_CONFIRM'		=> 'Do you really want to delete all reputation points for that post?',
-	'RS_CLEARED_POST'			=> 'The post reputation has been cleared.',
+	'RS_CLEAR_POST'				=> 'Clear post rating',
+	'RS_CLEAR_POST_CONFIRM'		=> 'Do you really want to delete all votes given to that post?',
+	'RS_CLEARED_POST'			=> 'The post rating has been cleared.',
 	'RS_CLEAR_USER'				=> 'Clear user reputation',
-	'RS_CLEAR_USER_CONFIRM'		=> 'Do you really want to delete all reputation points for that user?',
+	'RS_CLEAR_USER_CONFIRM'		=> 'Do you really want to delete all votes given to that user?',
 	'RS_CLEARED_USER'			=> 'The user reputation has been cleared.',
 
-	'RS_LATEST_REPUTATIONS'			=> 'Latest reputations',
-	'LIST_REPUTATIONS'				=> array(
-		1	=> '%d reputation',
-		2	=> '%d reputations',
-	),
-	'ALL_REPUTATIONS'				=> 'All reputations',
+	'LIST_REPUTATIONS'				=> [
+		1	=> '%d vote',
+		2	=> '%d votes',
+	],
 
-	'RS_NEW_REPUTATIONS'			=> 'New reputation points',
-	'RS_NEW_REP'					=> 'You received <strong>1 new</strong> reputation comment',
-	'RS_NEW_REPS'					=> 'You received <strong>%s new</strong> reputation comments',
-	'RS_CLICK_TO_VIEW'				=> 'Go to received points',
+	'RS_MORE_DETAILS'				=> 'More details →',
 
-	'RS_MORE_DETAILS'				=> '» more details',
+	'RS_POWER_DETAILS'				=> 'How %1$s’s voting points should be calculated',
+	'RS_POWER_DETAILS_SELF'			=> 'How your voting points should be calculated',
 
-	'RS_USER_REPUTATION'			=> '%s\'s reputation',
+	'RS_POWER_DETAIL_POSTS'			=> [
+		1 => '+1 point per every %1$d post',
+		2 => '+1 point per every %1$d posts',
+	],
+	'RS_POWER_DETAIL_AGE'			=> [
+		1 => '+1 point per every %1$d day onboard',
+		2 => '+1 point per every %1$d days onboard',
+	],
+	'RS_POWER_DETAIL_REPUTATION'	=> [
+		1 => '±1 point per every ±%1$d reputation points',
+		2 => '±1 point per every ±%1$d reputation points',
+	],
+	'RS_POWER_DETAIL_WARNINGS'		=> [
+		1 => '−%1$d point per every warning',
+		2 => '−%1$d points per every warning',
+	],
 
-	'RS_VOTE_POWER_LEFT'			=> '%1$d of %2$d',
+	'RS_POWER_DETAIL_MIN'			=> 'Minimum allowed voting points for all users',
+	'RS_POWER_DETAIL_MAX'			=> 'Maximun allowed voting points for all users',
+	'RS_POWER_DETAIL_RESULTING'		=> 'Result',
+	'RS_POWER_DETAIL_GROUP_POWER'	=> 'Amoint of voting points is determined by user group power',
 
-	'RS_POWER_DETAILS'				=> 'How reputation power should be calculated',
-	'RS_POWER_DETAIL_AGE'			=> 'By registration date',
-	'RS_POWER_DETAIL_POSTS'			=> 'By number of posts',
-	'RS_POWER_DETAIL_REPUTATION'		=> 'By reputation',
-	'RS_POWER_DETAIL_WARNINGS'		=> 'By warnings',
-	'RS_POWER_DETAIL_MIN'			=> 'Minimum reputation power for all users',
-	'RS_POWER_DETAIL_MAX'			=> 'Reputation power capped at maximum allowed',
-	'RS_POWER_DETAIL_GROUP_POWER'	=> 'Reputation power based on user group',
-	'RS_GROUP_POWER'				=> 'Reputation power based on user group',
-));
+	'RS_ANTISPAM_INFO'			=> 'You cannot rate the post so soon. You may try again later.',
+	'RS_COMMENT_TOO_LONG'		=> 'Your comment contains %1$s characters and is too long. <br /> The maximum allowed characters: %2$s.',
+	'RS_NO_COMMENT'				=> 'Please enter a comment.',
+	'RS_NO_POST'				=> 'There is no such post.',
+	'RS_NO_POWER'				=> 'You have no voting points. <br /> At least 1 point is required to vote. <br /> <a href="%1$s" class="rs-explain-vote-points"> How to get voting points </a>',
+	'RS_NO_POWER_LEFT'			=> 'You have spent all available voting points (%2$s/%1$s). <br /> Wait until they renew. <br /> Renewal occurs in %3$s after your last vote. <br /> <a href="%4$s" class="rs-explain-vote-points"> How to get more voting points </a>',
+	'RS_NO_USER_ID'				=> 'The requested user does not exist.',
+	'RS_POST_RATING'			=> 'Rating post',
+	'RS_RATE_BUTTON'			=> 'Rate',
+	'RS_SAME_POST'				=> 'You have already given this post %s points.',
+	'RS_SAME_USER'				=> 'You have already rated this user.',
+	'RS_SELF'					=> 'You cannot rate yourself',
+	'RS_SELF_POST'				=> 'You cannot rate your own posts.',
+	'RS_USER_ANONYMOUS'			=> 'You are not allowed to rate anonymous users.',
+	'RS_USER_BANNED'			=> 'You are not allowed to rate banned users.',
+	'RS_USER_CANNOT_DELETE'		=> 'You do not have permission to delete that vote.',
+	'RS_USER_DISABLED'			=> 'You are not allowed to rate.',
+	'RS_USER_CANNOT_RATE'		=> 'Cannot perform operation.',
+	'RS_USER_GAP'				=> 'You cannot rate the same user so soon. You can try again in %s.',
+	'RS_USER_NEGATIVE'			=> 'You are not allowed to rate negatively. <br /> Your reputation has to be higher than %s.',
+	'RS_USER_RATING'			=> 'Rating user',
+	'RS_VIEW_DISALLOWED'		=> 'You are not allowed to view reputation details.',
+	'RS_VOTE_POWER_LEFT_OF_MAX'	=> '%1$d voting points left of %2$d',
+	'RS_VOTE_SAVED'				=> 'Vote saved',
+	'RS_WARNING_RATING'			=> 'Warning from the moderator',
+	'RS_CLOSE'					=> 'Close',
+
+	'RS_HOURS'					=> [
+		1 => '%d hour',
+		2 => '%d hours',
+	],
+
+	'RS_USER_IS_EXCLUDED'		=> '%s’s reputation is immutable and impeccable.',
+]);

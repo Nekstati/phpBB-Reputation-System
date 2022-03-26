@@ -12,9 +12,6 @@ namespace pico\reputation\event;
 
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
-/**
-* Event listener
-*/
 class index_listener implements EventSubscriberInterface
 {
 	/** @var \phpbb\auth\auth */
@@ -66,9 +63,9 @@ class index_listener implements EventSubscriberInterface
 	*/
 	static public function getSubscribedEvents()
 	{
-		return array(
+		return [
 			'core.index_modify_page_title'	=> 'reputation_toplist',
-		);
+		];
 	}
 
 	/**
@@ -81,8 +78,6 @@ class index_listener implements EventSubscriberInterface
 	{
 		if ($this->config['rs_enable'] && $this->config['rs_enable_toplist'] && $this->config['rs_toplist_num'])
 		{
-			$this->user->add_lang_ext('pico/reputation', 'reputation_toplist');
-
 			$sql = 'SELECT user_id, username, user_colour, user_reputation
 				FROM ' . USERS_TABLE . '
 				WHERE user_reputation > 0
@@ -91,21 +86,24 @@ class index_listener implements EventSubscriberInterface
 
 			while ($row = $this->db->sql_fetchrow($result))
 			{
-				$this->template->assign_block_vars('toplist', array(
-					'USERNAME_FULL'		=> get_username_string('full', $row['user_id'], $row['username'], $row['user_colour']),
-					'USER_REPUTATION'	=> $row['user_reputation'],
-
-					'U_VIEW_USER_REPUTATION'	=> $this->helper->route('reputation_details_controller', array('uid' => $row['user_id'])),
-
-					'S_DIRECTION'	=> ($this->config['rs_toplist_direction']) ? true : false,
-				));
+				$this->template->assign_block_vars('toplist', [
+					'USERNAME_FULL'				=> get_username_string('full', $row['user_id'], $row['username'], $row['user_colour']),
+					'USER_REPUTATION'			=> $this->format_number($row['user_reputation']),
+					'U_VIEW_USER_REPUTATION'	=> $this->helper->route('reputation_details_controller', ['uid' => $row['user_id']]),
+					'S_DIRECTION'				=> ($this->config['rs_toplist_direction']) ? true : false,
+				]);
 			}
 			$this->db->sql_freeresult($result);
 
-			$this->template->assign_vars(array(
-				'S_RS_TOPLIST'		=> true,
-				'S_VIEW_REPUTATION'	=> ($this->auth->acl_get('u_rs_view')) ? true : false,
-			));
+			$this->template->assign_vars([
+				'S_RS_TOPLIST'			=> true,
+				'S_VIEW_REPUTATION'		=> ($this->auth->acl_get('u_rs_view')) ? true : false,
+			]);
 		}
+	}
+
+	private function format_number($number)
+	{
+		return ($this->config['rs_negative_point'] && $number > 0 ? '+' : '') . $number;
 	}
 }

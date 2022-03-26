@@ -1,10 +1,16 @@
 <!-- INCLUDE overall_header.html -->
 
+<style>
+	input[type="text"], dd textarea {
+		width: 92%;
+		max-width: 400px;
+		font-size: 1em;
+	}
+</style>
+
 <a id="maincontent"></a>
 
 <h1>{L_ACP_REPUTATION_SETTINGS}</h1>
-
-<p>{L_ACP_REPUTATION_SETTINGS_EXPLAIN}</p>
 
 <!-- IF S_ERROR -->
 	<div class="errorbox">
@@ -23,12 +29,15 @@
 		<fieldset>
 			<legend>{options.LEGEND}</legend>
 	<!-- ELSE -->
-
 		<dl>
-			<dt><label for="{options.KEY}">{options.TITLE}{L_COLON}</label><!-- IF options.S_EXPLAIN --><br /><span>{options.TITLE_EXPLAIN}</span><!-- ENDIF --></dt>
-			<dd>{options.CONTENT}</dd>
+			<dt>
+				<label for="{options.KEY}">{options.TITLE}{L_COLON}</label>
+				<!-- IF options.S_EXPLAIN --><br /><span>{options.TITLE_EXPLAIN}</span><!-- ENDIF -->
+			</dt>
+			<dd>
+				{options.CONTENT}
+			</dd>
 		</dl>
-
 	<!-- ENDIF -->
 <!-- END options -->
 </fieldset>
@@ -38,8 +47,8 @@
 	<p class="submit-buttons">
 		<input class="button1" type="submit" id="submit" name="submit" value="{L_SUBMIT}" />&nbsp;
 		<input class="button2" type="reset" id="reset" name="reset" value="{L_RESET}" />
+		{S_FORM_TOKEN}
 	</p>
-	{S_FORM_TOKEN}
 </fieldset>
 </form>
 

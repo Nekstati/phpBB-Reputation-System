@@ -74,6 +74,8 @@ class action_controller
 		$this->reputation_types_table = $reputation_types_table;
 		$this->root_path = $root_path;
 		$this->php_ext = $php_ext;
+
+		$user->add_lang_ext('pico/reputation', 'reputation_system');
 	}
 
 	/**
@@ -85,89 +87,76 @@ class action_controller
 	*/
 	public function delete($rid)
 	{
-		$this->user->add_lang_ext('pico/reputation', 'reputation_system');
 		$is_ajax = $this->request->is_ajax();
 		$submit = false;
 
-		$post_type_id = (int) $this->reputation_manager->get_reputation_type_id('post');
+		// $auc = $this->request->variable('auc', false);
+		$auc = false;
+		$target_type_names = ($auc)
+			? ['auc_post_buyer', 'auc_post_seller']
+			: ['post'];
+		$post_type_ids = [];
+		foreach ($target_type_names as $name)
+			$post_type_ids[$name] = $this->reputation_manager->get_reputation_type_id($name);
 
-		$sql_array = array(
+		$sql_array = [
 			'SELECT'	=> 'r.*, rt.reputation_type_name, p.post_id, uf.username AS username_from, ut.username AS username_to',
-			'FROM'		=> array(
+			'FROM'		=> [
 				$this->reputations_table => 'r',
 				$this->reputation_types_table => 'rt',
-			),
-			'LEFT_JOIN'	=> array(
-				array(
-					'FROM'	=> array(POSTS_TABLE => 'p'),
+			],
+			'LEFT_JOIN'	=> [
+				[
+					'FROM'	=> [POSTS_TABLE => 'p'],
 					'ON'	=> 'p.post_id = r.reputation_item_id
-						AND r.reputation_type_id = ' . $post_type_id,
-				),
-				array(
-					'FROM'	=> array(USERS_TABLE => 'uf'),
+						AND ' . $this->db->sql_in_set('r.reputation_type_id', $post_type_ids),
+				],
+				[
+					'FROM'	=> [USERS_TABLE => 'uf'],
 					'ON'	=> 'r.user_id_from = uf.user_id ',
-				),
-				array(
-					'FROM'	=> array(USERS_TABLE => 'ut'),
+				],
+				[
+					'FROM'	=> [USERS_TABLE => 'ut'],
 					'ON'	=> 'r.user_id_to = ut.user_id ',
-				),
-			),
-			'WHERE'	=> 'r.reputation_id = ' . $rid,
-		);
+				],
+			],
+			'WHERE'	=> 'r.reputation_id = ' . $rid . '
+				AND rt.reputation_type_id = r.reputation_type_id',
+		];
 		$sql = $this->db->sql_build_query('SELECT', $sql_array);
 		$result = $this->db->sql_query($sql);
 		$row = $this->db->sql_fetchrow($result);
 		$this->db->sql_freeresult($result);
 
-		//We couldn't find this reputation. May be it was deleted meanwhile?
 		if (empty($row))
 		{
 			$message = $this->user->lang('RS_NO_REPUTATION');
-			$json_data = array(
+			$json_data = [
 				'error_msg' => $message,
-			);
-			$redirect = append_sid("{$this->root_path}index.$this->php_ext");
+			];
+			$redirect = append_sid("{$this->root_path}index.{$this->php_ext}");
 			$redirect_text = 'RETURN_INDEX';
-
 			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
 		}
 
+		$redirect = ($this->request->server('HTTP_REFERER', '')) ?: $this->helper->route('reputation_details_controller', ['uid' => $row['user_id_to']] + ($auc ? ['auc' => true] : []));
+
 		if ($this->request->is_set_post('cancel'))
 		{
-			redirect($this->helper->route('reputation_details_controller', array('uid' => $row['user_id_to'])));
+			redirect($redirect);
 		}
 
 		if ($this->auth->acl_gets('m_rs_moderate') || (($row['user_id_from'] == $this->user->data['user_id']) && $this->auth->acl_get('u_rs_delete')))
 		{
-			if ($is_ajax)
-			{
-				$submit = true;
-			}
-			else
-			{
-				$s_hidden_fields = build_hidden_fields(array(
-					'r'		=> $rid,
-				));
-
-				if (confirm_box(true))
-				{
-					$submit = true;
-				}
-				else
-				{
-					confirm_box(false, $this->user->lang('RS_REPUTATION_DELETE_CONFIRM'), $s_hidden_fields);
-				}
-			}
+			$submit = true;
 		}
 		else
 		{
 			$message = $this->user->lang('RS_USER_CANNOT_DELETE');
-			$json_data = array(
+			$json_data = [
 				'error_msg' => $message,
-			);
-			$redirect = $this->helper->route('reputation_details_controller', array('uid' => $row['user_id_to']));
+			];
 			$redirect_text = 'RETURN_PAGE';
-
 			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
 		}
 
@@ -177,36 +166,53 @@ class action_controller
 			{
 				$this->reputation_manager->delete_reputation($row);
 			}
-			catch (\pico\reputation\exception\base $e)
+			catch (\Exception $e)
 			{
-				// Catch exception
-				trigger_error($e->get_message($this->user));
+				trigger_error($e->getMessage());
 			}
 
 			$user_reputation = $this->reputation_manager->get_user_reputation($row['user_id_to']);
+			$remainder = 0;
 
-			$message = $this->user->lang('RS_POINTS_DELETED');
-			$json_data = array(
+			// When deleting own vote from userprofile page, we need to know is this our only vote or not, prior to set proper rated_good/rated_bad class.
+			if (strpos($this->request->server('HTTP_REFERER', ''), 'memberlist.php?mode=viewprofile') !== false && $row['user_id_from'] == $this->user->data['user_id'])
+			{
+				$user_type_ids = ($auc)
+					? [$this->reputation_manager->get_reputation_type_id('auc_user_buyer'), $this->reputation_manager->get_reputation_type_id('auc_user_seller')]
+					: [$this->reputation_manager->get_reputation_type_id('user')];
+
+				$sql = 'SELECT SUM(reputation_points) AS sum
+					FROM ' . $this->reputations_table . '
+					WHERE ' . $this->db->sql_in_set('reputation_type_id', $user_type_ids) . "
+					AND user_id_from = {$this->user->data['user_id']}
+					AND user_id_to = {$row['user_id_to']}";
+				$result = $this->db->sql_query($sql);
+				$remainder = $this->db->sql_fetchfield('sum');
+				$this->db->sql_freeresult($result);
+			}
+
+			$message = $this->user->lang('RS_POINTS_DELETED', 1);
+			$json_data = [
 				'rid'					=> $rid,
-				'user_reputation'		=> $user_reputation,
-			);
+				'poster_id'				=> $row['user_id_to'],
+				'user_reputation'		=> $this->format_number($user_reputation),
+				'user_reputation_class'	=> $this->reputation_helper->reputation_class($user_reputation),
+				'is_own_single_vote'	=> ($row['user_id_from'] == $this->user->data['user_id'] && !$remainder),
+				'auc'					=> $auc,
+			];
 
 			if (isset($row['post_id']))
 			{
 				$post_reputation = $this->reputation_manager->get_post_reputation($row['post_id']);
 
-				$json_data = array_merge($json_data, array(
-					'poster_id'				=> $row['user_id_to'],
+				$json_data = array_merge($json_data, [
 					'post_id'				=> $row['post_id'],
-					'post_reputation'		=> $post_reputation,
-					'reputation_class'		=> $this->reputation_helper->reputation_class($post_reputation),
-					'own_vote'				=> ($row['user_id_from'] == $this->user->data['user_id']) ? true : false,
-				));
+					'post_reputation'		=> $this->format_number($post_reputation),
+					'post_reputation_class'	=> $this->reputation_helper->reputation_class($post_reputation),
+				]);
 			}
 
-			$redirect = $this->helper->route('reputation_details_controller', array('uid' => $row['user_id_to']));
 			$redirect_text = 'RETURN_PAGE';
-
 			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
 		}
 	}
@@ -220,46 +226,52 @@ class action_controller
 	*/
 	public function clear_post($post_id)
 	{
-		$this->user->add_lang_ext('pico/reputation', 'reputation_system');
 		$is_ajax = $this->request->is_ajax();
 		$submit = false;
-		$post_type_id = (int) $this->reputation_manager->get_reputation_type_id('post');
 
-		$sql_array = array(
+		// $auc = $this->request->variable('auc', false);
+		$auc = false;
+		$target_type_names = ($auc)
+			? ['auc_post_buyer', 'auc_post_seller']
+			: ['post'];
+		$post_type_ids = [];
+		foreach ($target_type_names as $name)
+			$post_type_ids[$name] = $this->reputation_manager->get_reputation_type_id($name);
+
+		$sql_array = [
 			'SELECT'	=> 'r.*, p.post_subject, p.post_reputation, ut.username AS username_to',
-			'FROM'		=> array(
+			'FROM'		=> [
 				$this->reputations_table => 'r',
 				POSTS_TABLE => 'p',
-			),
-			'LEFT_JOIN'	=> array(
-				array(
-					'FROM'	=> array(USERS_TABLE => 'ut'),
+			],
+			'LEFT_JOIN'	=> [
+				[
+					'FROM'	=> [USERS_TABLE => 'ut'],
 					'ON'	=> 'r.user_id_to = ut.user_id ',
-				),
-			),
+				],
+			],
 			'WHERE'	=> 'r.reputation_item_id = ' . $post_id . '
-				AND r.reputation_type_id = ' . $post_type_id . '
+				AND ' . $this->db->sql_in_set('r.reputation_type_id', $post_type_ids) . '
 				AND p.post_id = r.reputation_item_id',
-		);
+		];
 		$sql = $this->db->sql_build_query('SELECT', $sql_array);
 		$result = $this->db->sql_query($sql);
-		$row = $this->db->sql_fetchrow($result);
+		$rows = $this->db->sql_fetchrowset($result);
 		$this->db->sql_freeresult($result);
 
-		//We couldn't find this reputation. May be it was deleted meanwhile?
-		if (empty($row))
+		if (empty($rows))
 		{
 			$message = $this->user->lang('RS_NO_REPUTATION');
-			$json_data = array(
+			$json_data = [
 				'error_msg' => $message,
-			);
-			$redirect = append_sid("{$this->root_path}index.$this->php_ext");
+			];
+			$redirect = append_sid("{$this->root_path}index.{$this->php_ext}");
 			$redirect_text = 'RETURN_INDEX';
 
 			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
 		}
 
-		$redirect = $this->helper->route('reputation_post_details_controller', array('post_id' => $post_id));
+		$redirect = $this->helper->route('reputation_post_details_controller', ['post_id' => $post_id] + ($auc ? ['auc' => true] : []));
 
 		if ($this->request->is_set_post('cancel'))
 		{
@@ -276,9 +288,7 @@ class action_controller
 			}
 			else
 			{
-				$s_hidden_fields = build_hidden_fields(array(
-					'p'		=> $post_id,
-				));
+				$s_hidden_fields = build_hidden_fields(['p' => $post_id] + ($auc ? ['auc' => true] : []));
 
 				if (confirm_box(true))
 				{
@@ -293,9 +303,9 @@ class action_controller
 		else
 		{
 			$message = $this->user->lang('RS_USER_CANNOT_DELETE');
-			$json_data = array(
+			$json_data = [
 				'error_msg' => $message,
-			);
+			];
 
 			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
 		}
@@ -304,23 +314,26 @@ class action_controller
 		{
 			try
 			{
-				$this->reputation_manager->clear_post_reputation($post_id, $row);
+				$this->reputation_manager->clear_post_reputation($post_id, $rows);
 			}
-			catch (\pico\reputation\exception\base $e)
+			catch (\Exception $e)
 			{
-				// Catch exception
-				trigger_error($e->get_message($this->user));
+				trigger_error($e->getMessage());
 			}
 
+			$user_reputation = $this->reputation_manager->get_user_reputation($rows[0]['user_id_to']);
+
 			$message = $this->user->lang('RS_CLEARED_POST');
-			$json_data = array(
+			$json_data = [
 				'clear_post'			=> true,
 				'post_id'				=> $post_id,
-				'poster_id'				=> $row['user_id_to'],
-				'user_reputation'		=> $this->reputation_manager->get_user_reputation($row['user_id_to']),
+				'poster_id'				=> $rows[0]['user_id_to'],
+				'user_reputation'		=> $this->format_number($user_reputation),
 				'post_reputation'		=> 0,
-				'reputation_class'		=> 'neutral',
-			);
+				'user_reputation_class'	=> $this->reputation_helper->reputation_class($user_reputation),
+				'post_reputation_class'	=> 'neutral',
+				'auc'					=> $auc,
+			];
 
 			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
 		}
@@ -335,55 +348,60 @@ class action_controller
 	*/
 	public function clear_user($uid)
 	{
-		$this->user->add_lang_ext('pico/reputation', 'reputation_system');
 		$is_ajax = $this->request->is_ajax();
 		$submit = false;
 
-		$sql_array = array(
-			'SELECT'	=> 'r.*, ut.username AS username_to',
-			'FROM'		=> array(
-				$this->reputations_table => 'r',
-			),
-			'LEFT_JOIN'	=> array(
-				array(
-					'FROM'	=> array(USERS_TABLE => 'ut'),
+		$auc = $this->request->variable('auc', false);
+		$auc = false;
+		// $target_type_names = ['post', 'auc_post_buyer', 'auc_post_seller'];
+		$target_type_names = ['post'];
+		$post_type_ids = [];
+		foreach ($target_type_names as $name)
+			$post_type_ids[$name] = $this->reputation_manager->get_reputation_type_id($name);
+
+		$sql_array = [
+			'SELECT'	=> 'r.*, ut.user_reputation, ut.username AS username_to',
+			'FROM'		=> [
+				USERS_TABLE => 'ut',
+			],
+			'LEFT_JOIN'	=> [
+				[
+					'FROM'	=> [$this->reputations_table => 'r'],
 					'ON'	=> 'r.user_id_to = ut.user_id ',
-				),
-			),
-			'WHERE'	=> 'r.user_id_to = ' . $uid
-		);
+				],
+			],
+			'WHERE'	=> 'ut.user_id = ' . $uid
+		];
 		$sql = $this->db->sql_build_query('SELECT', $sql_array);
 		$result = $this->db->sql_query($sql);
 		$row = $this->db->sql_fetchrow($result);
 		$this->db->sql_freeresult($result);
 
-		//We couldn't find this reputation. May be it was deleted meanwhile?
 		if (empty($row))
 		{
 			$message = $this->user->lang('RS_NO_REPUTATION');
-			$json_data = array(
+			$json_data = [
 				'error_msg' => $message,
-			);
-			$redirect = append_sid("{$this->root_path}index.$this->php_ext");
+			];
+			$redirect = append_sid("{$this->root_path}index.{$this->php_ext}");
 			$redirect_text = 'RETURN_INDEX';
 
 			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
 		}
 
-		$redirect = $this->helper->route('reputation_details_controller', array('uid' => $uid));
+		$redirect = $this->helper->route('reputation_details_controller', ['uid' => $uid] + ($auc ? ['auc' => true] : []));
 
 		if ($this->request->is_set_post('cancel'))
 		{
 			redirect($redirect);
 		}
 
-		$post_ids = array();
-		$post_type_id = (int) $this->reputation_manager->get_reputation_type_id('post');
+		$post_ids = [];
 
 		$sql = 'SELECT reputation_item_id
 			FROM ' . $this->reputations_table . "
 			WHERE user_id_to = {$uid}
-				AND reputation_type_id = {$post_type_id}
+				AND " . $this->db->sql_in_set('reputation_type_id', $post_type_ids) . "
 			GROUP BY reputation_item_id";
 		$result = $this->db->sql_query($sql);
 
@@ -403,9 +421,7 @@ class action_controller
 			}
 			else
 			{
-				$s_hidden_fields = build_hidden_fields(array(
-					'u'		=> $uid,
-				));
+				$s_hidden_fields = build_hidden_fields(['u' => $uid] + ($auc ? ['auc' => true] : []));
 
 				if (confirm_box(true))
 				{
@@ -420,9 +436,9 @@ class action_controller
 		else
 		{
 			$message = $this->user->lang('RS_USER_CANNOT_DELETE');
-			$json_data = array(
+			$json_data = [
 				'error_msg' => $message,
-			);
+			];
 
 			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
 		}
@@ -433,23 +449,29 @@ class action_controller
 			{
 				$this->reputation_manager->clear_user_reputation($uid, $row, $post_ids);
 			}
-			catch (\pico\reputation\exception\base $e)
+			catch (\Exception $e)
 			{
-				// Catch exception
-				trigger_error($e->get_message($this->user));
+				trigger_error($e->getMessage());
 			}
 
 			$message = $this->user->lang('RS_CLEARED_USER');
-			$json_data = array(
+			$json_data = [
 				'clear_user'			=> true,
 				'post_ids'				=> $post_ids,
 				'poster_id'				=> $uid,
 				'user_reputation'		=> 0,
 				'post_reputation'		=> 0,
-				'reputation_class'		=> 'neutral',
-			);
+				'user_reputation_class'	=> 'neutral',
+				'post_reputation_class'	=> 'neutral',
+				'auc'					=> $auc,
+			];
 
 			$this->reputation_manager->response($message, $json_data, $redirect, $redirect_text, $is_ajax);
 		}
+	}
+
+	private function format_number($number)
+	{
+		return ($GLOBALS['config']['rs_negative_point'] && $number > 0 ? '+' : '') . $number;
 	}
 }

@@ -1,0 +1,112 @@
+<!-- INCLUDE overall_header.html -->
+
+<h2>{RS_LASTVOTES_TITLE}</h2>
+
+<div class="reputation-toplist panel bg1">
+	<h3>{RS_LASTVOTES_TOP_TITLE}</h3>
+
+	{% for o in toplist %}
+		<div class="reputation-toplist-item">
+			<div class="reputation-count">{{ loop.index }}</div>
+			<div class="reputation-avatar"> {{ o.AVATAR ?: ('<img src="' ~ T_THEME_PATH ~ '/images/no_avatar.gif" alt="" />') }} </div>
+			{o.USERNAME} <br />
+			<span class="reputation {o.POINTS_CLASS}">{o.POINTS}</span>
+		</div>
+	{% endfor %}
+</div>
+
+<div class="reputation-lastvotes">
+	<!-- IF .reputation -->
+	<div class="action-bar bar-top">
+		<div class="rs-sorting rs-sorting-{SORT_DIR}">
+			<label>{L_RS_SORT_BY}{L_COLON}</label>
+			<a href="{U_SORT_USERNAME_FROM}" {{ SORT_KEY == 'username_from' ? 'class="rs-sorting-link-active"' : '' }}>{L_RS_FROM_USER}</a>&nbsp;
+			<a href="{U_SORT_USERNAME_TO}" {{ SORT_KEY == 'username_to' ? 'class="rs-sorting-link-active"' : '' }}>{L_RS_TO_USER}</a>&nbsp;
+			<a href="{U_SORT_TIME}" {{ SORT_KEY == 'time' ? 'class="rs-sorting-link-active"' : '' }}>{L_TIME}</a>&nbsp;
+			{% if U_SORT_POINT %}<a href="{U_SORT_POINT}" {{ SORT_KEY == 'point' ? 'class="rs-sorting-link-active"' : '' }}>{L_RS_POINTS}</a>&nbsp;{% endif %}
+			<a href="{U_SORT_ACTION}" {{ SORT_KEY == 'action' ? 'class="rs-sorting-link-active"' : '' }}>{L_RS_ACTION}</a>
+		</div>
+
+		<!-- IF .pagination or TOTAL_REPS -->
+		<div class="pagination">
+			{TOTAL_REPS}
+			<!-- IF .pagination -->
+				<!-- INCLUDE pagination.html -->
+			<!-- ELSE -->
+				&bull; {PAGE_NUMBER}
+			<!-- ENDIF -->
+		</div>
+		<!-- ENDIF -->
+
+		<div class="clear"></div>
+	</div>
+	<!-- ENDIF -->
+
+	<div class="post-reputation-list" style="font-size: 1.1em">
+		<!-- BEGIN reputation -->
+		<div class="reputation-list-item <!-- IF reputation.POINTS > 0 -->rs-bg-positive<!-- ELSE -->rs-bg-negative<!-- ENDIF -->" id="rs-list-item-{reputation.ID}">
+			<!-- IF S_RS_AVATAR -->
+			<div class="reputation-avatar">
+				{{ reputation.AVATAR_FROM ?: ('<img src="' ~ T_THEME_PATH ~ '/images/no_avatar.gif" alt="" />') }}
+				<i class="icon fa-arrow-right"></i>&thinsp;{{ reputation.AVATAR_TO ?: ('<img src="' ~ T_THEME_PATH ~ '/images/no_avatar.gif" alt="" />') }}
+			</div>
+			<!-- ENDIF -->
+			<div class="reputation-detail">
+				<div class="reputation-rating {reputation.POINTS_CLASS}<!-- IF S_RS_POINTS_IMG --> image<!-- ENDIF -->" title="{reputation.POINTS_TITLE}">{reputation.POINTS}</div>
+				<!-- IF reputation.U_DELETE -->
+					<a href="{reputation.U_DELETE}" class="reputation-delete rightside" title="{L_DELETE}">
+						<i class="icon fa-trash-o fa-fw" aria-hidden="true"></i>
+					</a>
+				<!-- ENDIF -->
+				<div>{L_RS_FROM_USER}: <strong>{reputation.USERNAME_FROM}</strong> <span class="reputation-time">|</span> {L_RS_TO_USER}: <strong>{reputation.USERNAME_TO}</strong> <span class="reputation-time"> | {reputation.TIME}</span></div>
+				<div class="reputation-action">
+					<span class="type-title">{reputation.ACTION}{{ reputation.post|length ? ':' : '' }}</span>
+					<!-- BEGIN reputation.post -->
+						<!-- IF reputation.post.U_POST --><a href="{reputation.post.U_POST}" title="{L_POST}">{reputation.post.POST_SUBJECT}</a><!-- ELSE -->{reputation.post.POST_SUBJECT}<!-- ENDIF -->
+					<!-- END reputation.post -->
+				</div>
+				<!-- IF S_RS_COMMENT and reputation.COMMENT -->
+				<div class="comment_message">
+					{reputation.COMMENT}
+				</div>
+				<!-- ENDIF -->
+			</div>
+		</div>
+		<!-- BEGINELSE -->
+		<div class="reputation-list-item bg1" style="text-align: center">
+			<span>{L_RS_EMPTY_DATA}</span>
+		</div>
+		<!-- END reputation -->
+	</div>
+
+	<!-- IF .reputation -->
+	<div class="action-bar bar-bottom">
+		<div class="rs-sorting rs-sorting-{SORT_DIR}">
+			<label>{L_RS_SORT_BY}{L_COLON}</label>
+			<a href="{U_SORT_USERNAME_FROM}" {{ SORT_KEY == 'username_from' ? 'class="rs-sorting-link-active"' : '' }}>{L_RS_FROM_USER}</a>&nbsp;
+			<a href="{U_SORT_USERNAME_TO}" {{ SORT_KEY == 'username_to' ? 'class="rs-sorting-link-active"' : '' }}>{L_RS_TO_USER}</a>&nbsp;
+			<a href="{U_SORT_TIME}" {{ SORT_KEY == 'time' ? 'class="rs-sorting-link-active"' : '' }}>{L_TIME}</a>&nbsp;
+			{% if U_SORT_POINT %}<a href="{U_SORT_POINT}" {{ SORT_KEY == 'point' ? 'class="rs-sorting-link-active"' : '' }}>{L_RS_POINTS}</a>&nbsp;{% endif %}
+			<a href="{U_SORT_ACTION}" {{ SORT_KEY == 'action' ? 'class="rs-sorting-link-active"' : '' }}>{L_RS_ACTION}</a>
+		</div>
+
+		<!-- IF .pagination or TOTAL_REPS -->
+		<div class="pagination">
+			{TOTAL_REPS}
+			<!-- IF .pagination -->
+				<!-- INCLUDE pagination.html -->
+			<!-- ELSE -->
+				&bull; {PAGE_NUMBER}
+			<!-- ENDIF -->
+		</div>
+		<!-- ENDIF -->
+
+		<div class="clear"></div>
+	</div>
+	<!-- ENDIF -->
+</div>
+
+
+<br class="clear">
+
+<!-- INCLUDE overall_footer.html -->

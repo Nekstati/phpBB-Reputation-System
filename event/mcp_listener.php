@@ -66,11 +66,11 @@ class mcp_listener implements EventSubscriberInterface
 	*/
 	static public function getSubscribedEvents()
 	{
-		return array(
+		return [
 			'core.mcp_warn_post_after'					=> 'warning_post',
 			'core.mcp_warn_user_after'					=> 'warning_user',
 			'core.modify_mcp_modules_display_option'	=> 'reputation_warning_options',
-		);
+		];
 	}
 
 	/**
@@ -82,25 +82,24 @@ class mcp_listener implements EventSubscriberInterface
 	*/
 	public function warning_post($event)
 	{
-		if($this->request->is_set_post('add_reputation'))
+		if ($this->request->is_set_post('add_reputation'))
 		{
-			$data = array(
+			$data = [
 				'user_id_from'			=> $this->user->data['user_id'],
 				'user_id_to'			=> $event['user_row']['poster_id'],
 				'reputation_type'		=> 'warning',
 				'reputation_item_id'	=> $event['post_id'],
 				'reputation_points'		=> $this->request->variable('points', ''),
 				'reputation_comment'	=> $this->request->variable('comment', '', true),
-			);
+			];
 
 			try
 			{
 				$this->reputation_manager->store_reputation($data);
 			}
-			catch (\pico\reputation\exception\base $e)
+			catch (\Exception $e)
 			{
-				// Catch exception
-				$error = $e->get_message($this->user);
+				$error = $e->getMessage();
 			}
 		}
 	}
@@ -114,25 +113,24 @@ class mcp_listener implements EventSubscriberInterface
 	*/
 	public function warning_user($event)
 	{
-		if($this->request->is_set_post('add_reputation'))
+		if ($this->request->is_set_post('add_reputation'))
 		{
-			$data = array(
+			$data = [
 				'user_id_from'			=> $this->user->data['user_id'],
 				'user_id_to'			=> $event['user_row']['user_id'],
 				'reputation_type'		=> 'warning',
 				'reputation_item_id'	=> 0,
 				'reputation_points'		=> $this->request->variable('points', ''),
 				'reputation_comment'	=> $this->request->variable('comment', '', true),
-			);
+			];
 
 			try
 			{
 				$this->reputation_manager->store_reputation($data);
 			}
-			catch (\pico\reputation\exception\base $e)
+			catch (\Exception $e)
 			{
-				// Catch exception
-				$error = $e->get_message($this->user);
+				$error = $e->getMessage();
 			}
 		}
 	}
@@ -150,20 +148,18 @@ class mcp_listener implements EventSubscriberInterface
 
 		if ($this->config['rs_warning'] && $this->auth->acl_get('m_rs_moderate') && ($mode == 'warn_post' || $mode == 'warn_user'))
 		{
-			$this->user->add_lang_ext('pico/reputation', 'reputation_warning');
-
-			//Preparing HTML for voting by manual spending of user power
-			for($i = 1; $i <= $this->config['rs_max_power_warning']; ++$i)
+			// Preparing HTML for voting by manual spending of user power
+			for ($i = 1; $i <= $this->config['rs_max_power_warning']; ++$i)
 			{
-				$this->template->assign_block_vars('power', array(
+				$this->template->assign_block_vars('power', [
 					'POINTS'	=> -$i,
 					'TITLE'		=> $this->user->lang('MCP_RS_POINTS', $i),
-				));
+				]);
 			}
 
-			$this->template->assign_vars(array(
+			$this->template->assign_vars([
 				'S_RS_WARNING'		=> true,
-			));
+			]);
 		}
 	}
 }

@@ -1,0 +1,71 @@
+<!-- IF S_REPUTATION -->
+
+<template id="rs-profile-block">
+	<h3 style="clear: both; padding-top: 2em">{L_REPUTATION}</h3>
+	<dl class="details" style="overflow: hidden; margin-bottom: 1.5em">
+
+		<dt class="rs-profile-title">{L_RS_REPUTATION_COMMON}{L_COLON}</dt>
+		<dd>
+			<div class="button rs-widget<!-- IF USER_VOTE_CLASS --> {USER_VOTE_CLASS}<!-- ENDIF -->" data-user="{RS_USER_ID}">
+
+				<!-- IF S_RATE_USER && S_RATE_USER_NEGATIVE -->
+					<a href="{U_RATE_USER_NEGATIVE}" title="{L_RS_RATE_NEGATIVE}" class="rate-bad-icon">
+						<i class="icon fa-angle-down fa-fw" aria-hidden="true"></i>
+					</a>
+				<!-- ENDIF -->
+
+				<!-- IF S_VIEW_REPUTATION -->
+					<a href="{U_VIEW_USER_REPUTATION}" title="{L_RS_USER_REPUTATION_COMMON}" class="post-reputation {USER_REPUTATION_CLASS}">{USER_REPUTATION}</a>
+				<!-- ELSE -->
+					<div class="post-reputation {USER_REPUTATION_CLASS} guest">{USER_REPUTATION}</div>
+				<!-- ENDIF -->
+
+				<!-- IF S_RATE_USER -->
+					<a href="{U_RATE_USER_POSITIVE}" title="{L_RS_RATE_POSITIVE}" class="rate-good-icon">
+						<i class="icon fa-angle-up fa-fw" aria-hidden="true"></i>
+					</a>
+				<!-- ENDIF -->
+
+			</div>
+		</dd>
+
+		{% if AUC_CURRENCY_SIGN %}
+		<dt class="rs-profile-title">{L_RS_REPUTATION_AUC}{L_COLON}</dt>
+		<dd>
+			<div class="button rs-widget<!-- IF USER_VOTE_CLASS_AUC --> {USER_VOTE_CLASS_AUC}<!-- ENDIF -->" data-user-auc="{RS_USER_ID}">
+
+				<!-- IF S_RATE_USER && U_RATE_USER_NEGATIVE_AUC -->
+					<a href="{U_RATE_USER_NEGATIVE_AUC}" title="{L_RS_RATE_NEGATIVE}" class="rate-bad-icon">
+						<i class="icon fa-angle-down fa-fw" aria-hidden="true"></i>
+					</a>
+				<!-- ENDIF -->
+
+				<!-- IF S_VIEW_REPUTATION -->
+					<a href="{U_VIEW_USER_REPUTATION_AUC}" title="{L_RS_USER_REPUTATION_AUC}" class="post-reputation {USER_REPUTATION_CLASS_AUC}">{USER_REPUTATION_AUC}</a>
+				<!-- ELSE -->
+					<div class="post-reputation {USER_REPUTATION_CLASS_AUC} guest">{USER_REPUTATION_AUC}</div>
+				<!-- ENDIF -->
+
+				<!-- IF S_RATE_USER -->
+					<a href="{U_RATE_USER_POSITIVE_AUC}" title="{L_RS_RATE_POSITIVE}" class="rate-good-icon">
+						<i class="icon fa-angle-up fa-fw" aria-hidden="true"></i>
+					</a>
+				<!-- ENDIF -->
+
+			</div>
+		</dd>
+		{% endif %}
+
+	</dl>
+</template>
+
+<script>
+{
+	let what = document.querySelector('#rs-profile-block');
+	let where = document.querySelector('#viewprofile .panel + .panel .column1');
+	if (what && where)
+		where.insertAdjacentHTML('beforeend', what.innerHTML);
+}
+</script>
+
+<!-- ENDIF -->

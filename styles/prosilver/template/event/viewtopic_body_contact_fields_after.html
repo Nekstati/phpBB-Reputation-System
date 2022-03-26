@@ -1,0 +1,39 @@
+<!-- IF S_REPUTATION and S_FORUM_REPUTATION and postrow.U_POST_AUTHOR and (postrow.S_RATE_POST || postrow.S_VIEW_REPUTATION) and RS_MINIPROFILE_WIDGET_TYPE > 0 -->
+<dd class="rs-miniprofile-block">
+
+	<div class="button rs-widget<!-- IF postrow.POST_VOTE_CLASS --> {postrow.POST_VOTE_CLASS}<!-- ENDIF -->" {{ RS_AUC ? 'data-user-auc' : 'data-user' }}="{postrow.POSTER_ID}" data-post="{postrow.POST_ID}">
+
+		<!-- IF postrow.S_RATE_POST and postrow.S_RATE_POST_NEGATIVE and RS_MINIPROFILE_WIDGET_TYPE == 2 -->
+			<a href="{postrow.U_RATE_POST_NEGATIVE}" title="{L_RS_RATE_NEGATIVE}" class="rate-bad-icon">
+				<i class="icon fa-angle-down fa-fw" aria-hidden="true"></i>
+			</a>
+		<!-- ENDIF -->
+
+		<!-- IF postrow.S_VIEW_REPUTATION -->
+			<a href="{postrow.U_VIEW_USER_REPUTATION}" title="{{ lang(RS_AUC ? 'RS_USER_REPUTATION_AUC' : 'RS_USER_REPUTATION') }}" class="post-reputation {postrow.USER_REPUTATION_CLASS}">{postrow.USER_REPUTATION}</a>
+		<!-- ELSE -->
+			<div title="{{ lang(RS_AUC ? 'RS_USER_REPUTATION_AUC' : 'RS_USER_REPUTATION') }}" class="post-reputation {postrow.USER_REPUTATION_CLASS} guest">{postrow.USER_REPUTATION}</div>
+		<!-- ENDIF -->
+
+		<!-- IF postrow.S_RATE_POST and RS_MINIPROFILE_WIDGET_TYPE == 2 -->
+			<a href="{postrow.U_RATE_POST_POSITIVE}" title="{L_RS_RATE_POSITIVE}" class="rate-good-icon">
+				<i class="icon fa-angle-up fa-fw" aria-hidden="true"></i>
+			</a>
+		<!-- ENDIF -->
+
+	</div>
+
+	{% if RS_AUC && RS_AUC_MINIPROFILE_DOUBLE_REP && AUC_CURRENCY_SIGN %}
+	<div class="button rs-widget" data-user="{postrow.POSTER_ID}">
+
+		<!-- IF postrow.S_VIEW_REPUTATION -->
+			<a href="{postrow.U_VIEW_USER_REPUTATION_COMMON}" title="{L_RS_USER_REPUTATION_COMMON}" class="post-reputation {postrow.USER_REPUTATION_CLASS_COMMON}">{postrow.USER_REPUTATION_COMMON}</a>
+		<!-- ELSE -->
+			<div title="{L_RS_USER_REPUTATION_COMMON}" class="post-reputation {postrow.USER_REPUTATION_CLASS_COMMON} guest">{postrow.USER_REPUTATION_COMMON}</div>
+		<!-- ENDIF -->
+
+	</div>
+	{% endif %}
+
+</dd>
+<!-- ENDIF -->

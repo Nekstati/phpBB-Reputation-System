@@ -10,11 +10,6 @@
 
 namespace pico\reputation\core;
 
-/**
-* Reputation manager
-*
-* This class consists all common methods for reputations
-*/
 class reputation_manager
 {
 	/** @var \phpbb\auth\auth */
@@ -56,6 +51,8 @@ class reputation_manager
 	/** @var int Reputation identifier */
 	private $reputation_id;
 
+	private $auc, $auc_user_role;
+
 	/**
 	* Constructor
 	*
@@ -88,6 +85,19 @@ class reputation_manager
 		$this->reputation_types_table = $reputation_types_table;
 		$this->root_path = $root_path;
 		$this->php_ext = $php_ext;
+
+		// $this->auc = $GLOBALS['request']->variable('auc', false);
+		$this->auc = false;
+		// $this->auc_user_role = $GLOBALS['request']->variable('rs-auc-user-role', '');
+		$this->auc_user_role = '';
+		if (!in_array($this->auc_user_role, ['buyer', 'seller']))
+		{
+			$this->auc_user_role = '';
+		}
+		if ($this->auc_user_role != '')
+		{
+			$this->auc = true;
+		}
 	}
 
 	/**
@@ -102,7 +112,7 @@ class reputation_manager
 
 		if ($reputation_type_ids === false)
 		{
-			$reputation_type_ids = array();
+			$reputation_type_ids = [];
 
 			$sql = 'SELECT *
 				FROM ' . $this->reputation_types_table;
@@ -129,12 +139,11 @@ class reputation_manager
 	public function get_reputation_type_id($type_string)
 	{
 		$types = $this->get_reputation_types();
-
 		$type_id = array_search($type_string, $types);
 
 		if (empty($type_id))
 		{
-			throw new \pico\reputation\exception\invalid_argument(array('reputation_type', 'INVALID_TYPE'));
+			throw new \Exception($this->user->lang('EXCEPTION_INVALID_TYPE', $type_string));
 		}
 
 		return $type_id;
@@ -151,7 +160,7 @@ class reputation_manager
 	{
 		$data['reputation_time'] = time();
 
-		$fields = array(
+		$required_fields = [
 			'user_id_from'			=> 'integer',
 			'user_id_to'			=> 'integer',
 			'reputation_time'		=> 'integer',
@@ -159,53 +168,47 @@ class reputation_manager
 			'reputation_item_id'	=> 'integer',
 			'reputation_points'		=> 'integer',
 			'reputation_comment'	=> 'string', 
-		);
+		];
 
-		foreach ($fields as $field => $type)
+		foreach ($required_fields as $field => $type)
 		{
 			if (!isset($data[$field]))
 			{
-				throw new \pico\reputation\exception\invalid_argument(array($field, 'FIELD_MISSING'));
+				throw new \Exception($this->user->lang('EXCEPTION_FIELD_MISSING', $field));
 			}
 
-			$value = $data[$field];
-
-			settype($value, $type);
-
-			$data[$field] = $value;
+			settype($data[$field], $type);
 		}
 
-		// Get reputation type id
+		if ($data['reputation_points'] == 0)
+		{
+			throw new \Exception($this->user->lang('EXCEPTION_OUT_OF_BOUNDS', 'reputation_points'));
+		}
+
+		if ($this->auc_user_role && in_array($data['reputation_type'], ['post', 'user']))
+		{
+			$data['reputation_type'] = "auc_{$data['reputation_type']}_{$this->auc_user_role}";
+		}
+
 		$data['reputation_type_id'] = $this->get_reputation_type_id($data['reputation_type']);
 
-		// Unset reputation type - it is not stored in DB
-		unset($data['reputation_type']);
-
-		$validate_unsigned = array(
+		$validate_unsigned = [
 			'user_id_from',
 			'user_id_to',
 			'reputation_time',
 			'reputation_type_id',
 			'reputation_item_id',
-		);
+		];
 
 		foreach ($validate_unsigned as $field)
 		{
 			if ($data[$field] < 0)
 			{
-				throw new \pico\reputation\exception\out_of_bounds($field);
+				throw new \Exception($this->user->lang('EXCEPTION_OUT_OF_BOUNDS', $field));
 			}
 		}
 
-		// Save reputation vote
-		$sql = 'INSERT INTO ' . $this->reputations_table . ' ' . $this->db->sql_build_array('INSERT', $data);
-		$this->db->sql_query($sql);
-
-		unset($this->reputation_id);
-		$this->reputation_id = $this->db->sql_nextid();
-
-		// Update post reputation
-		if ($data['reputation_type_id'] == $this->get_reputation_type_id('post'))
+		if (in_array($data['reputation_type'], ['post', 'auc_post_buyer', 'auc_post_seller']))
 		{
 			$sql = 'UPDATE ' . POSTS_TABLE . "
 				SET post_reputation = post_reputation + {$data['reputation_points']}
@@ -213,17 +216,25 @@ class reputation_manager
 			$this->db->sql_query($sql);
 		}
 
-		// Update user reputation
+		$user_rep_field = ($this->auc_user_role) ? "user_reputation_auc_{$this->auc_user_role}" : 'user_reputation';
 		$sql = 'UPDATE ' . USERS_TABLE . "
-			SET user_reputation = user_reputation + {$data['reputation_points']}
+			SET $user_rep_field = $user_rep_field + {$data['reputation_points']}
 			WHERE user_id = {$data['user_id_to']}";
 		$this->db->sql_query($sql);
 
-		// Check max/min user points
 		if ($this->config['rs_max_point'] || $this->config['rs_min_point'])
 		{
 			$this->check_max_min($data['user_id_to']);
 		}
+
+		// Unset reputation type - it is not stored in DB
+		unset($data['reputation_type']);
+
+		$sql = 'INSERT INTO ' . $this->reputations_table . ' ' . $this->db->sql_build_array('INSERT', $data);
+		$this->db->sql_query($sql);
+
+		unset($this->reputation_id);
+		$this->reputation_id = $this->db->sql_nextid();
 	}
 
 	/**
@@ -238,27 +249,33 @@ class reputation_manager
 	*/
 	private function check_max_min($user_id)
 	{
-		$sql = 'SELECT SUM(reputation_points) AS points
-			FROM ' . $this->reputations_table . '
-			WHERE user_id_to = ' . (int) $user_id;
+		$user_rep_field = ($this->auc_user_role) ? "user_reputation_auc_{$this->auc_user_role}" : 'user_reputation';
+
+		// $sql = 'SELECT user_reputation, user_reputation_auc_buyer, user_reputation_auc_seller
+			// FROM ' . USERS_TABLE . '
+			// WHERE user_id = ' . $user_id;
+		// $result = $this->db->sql_query($sql);
+		// $row = $this->db->sql_fetchrow($result);
+		// $this->db->sql_freeresult($result);
+		$sql = 'SELECT user_reputation
+			FROM ' . USERS_TABLE . '
+			WHERE user_id = ' . $user_id;
 		$result = $this->db->sql_query($sql);
-		$points = $this->db->sql_fetchfield('points');
+		$row = $this->db->sql_fetchrow($result);
 		$this->db->sql_freeresult($result);
 
-		// Maximum user reputation
-		if (($points > $this->config['rs_max_point']) && $this->config['rs_max_point'])
+		if ($this->config['rs_max_point'] != 0 && ($row[$user_rep_field] > $this->config['rs_max_point']))
 		{
 			$sql = 'UPDATE ' . USERS_TABLE . "
-				SET user_reputation = {$this->config['rs_max_point']}
+				SET $user_rep_field = {$this->config['rs_max_point']}
 				WHERE user_id = $user_id";
 			$this->db->sql_query($sql);
 		}
 
-		// Minimum user reputation
-		if (($points < $this->config['rs_min_point']) && $this->config['rs_min_point'])
+		if ($this->config['rs_min_point'] != 0 && ($row[$user_rep_field] < $this->config['rs_min_point']))
 		{
 			$sql = 'UPDATE ' . USERS_TABLE . "
-				SET user_reputation = {$this->config['rs_min_point']}
+				SET $user_rep_field = {$this->config['rs_min_point']}
 				WHERE user_id = $user_id";
 			$this->db->sql_query($sql);
 		}
@@ -275,7 +292,7 @@ class reputation_manager
 	public function add_notification($notification_type_name, $data)
 	{
 		$data = array_merge(
-			array('reputation_id' => $this->reputation_id),
+			['reputation_id' => $this->reputation_id],
 			$data
 		);
 		$this->notification_manager->add_notifications($notification_type_name, $data);
@@ -284,7 +301,7 @@ class reputation_manager
 	/**
 	* Response method for displaying reputation messages
 	*
-	* @param string $message_lang Message user lang
+	* @param string $message Message
 	* @param array $json_data Json data for ajax request
 	* @param string $redirect_link Redirect link
 	* @param string $redirect_text Redirect text
@@ -292,22 +309,19 @@ class reputation_manager
 	* @access public
 	* @return string
 	*/
-	public function response($message_lang, $json_data, $redirect_link, $redirect_text, $is_ajax = false)
+	public function response($message, $json_data, $redirect_link, $redirect_text, $is_ajax = false)
 	{
-		$redirect = $redirect_link;
-
-		meta_refresh(3, $redirect);
-
-		$message = $message_lang;
+		meta_refresh(3, $redirect_link);
 
 		if ($is_ajax)
 		{
-			$json_response = new \phpbb\json_response();
-			$json_response->send($json_data);
+			(new \phpbb\json_response)->send($json_data);
 		}
-
-		$message .= '<br /><br />' . $this->user->lang($redirect_text, '<a href="' . $redirect . '">', '</a>');
-		trigger_error($message);
+		else
+		{
+			$message .= '<br /><br />' . $this->user->lang($redirect_text, '<a href="' . $redirect_link . '">', '</a>');
+			trigger_error($message);
+		}
 	}
 
 	/**
@@ -338,6 +352,12 @@ class reputation_manager
 	*/
 	public function get_user_reputation($user_id)
 	{
+		// $sql = 'SELECT user_reputation, user_reputation_auc_buyer, user_reputation_auc_seller
+			// FROM ' . USERS_TABLE . "
+			// WHERE user_id = $user_id";
+		// $result = $this->db->sql_query($sql);
+		// $row = $this->db->sql_fetchrow($result);
+		// $this->db->sql_freeresult($result);
 		$sql = 'SELECT user_reputation
 			FROM ' . USERS_TABLE . "
 			WHERE user_id = $user_id";
@@ -345,7 +365,7 @@ class reputation_manager
 		$row = $this->db->sql_fetchrow($result);
 		$this->db->sql_freeresult($result);
 
-		return $row['user_reputation'];
+		return ($this->auc) ? ($row['user_reputation_auc_buyer'] + $row['user_reputation_auc_seller']) : $row['user_reputation'];
 	}
 
 	/**
@@ -364,13 +384,17 @@ class reputation_manager
 
 		$total_reps = $same_user = 0;
 
-		$post_type = (int) $this->get_reputation_type_id('post');
-		$user_type = (int) $this->get_reputation_type_id('user');
+		$target_type_names = ($this->auc)
+			? ['auc_post_buyer', 'auc_post_seller', 'auc_user_buyer', 'auc_user_seller']
+			: ['post', 'user'];
+		$rep_type_ids = [];
+		foreach ($target_type_names as $name)
+			$rep_type_ids[$name] = $this->get_reputation_type_id($name);
 
 		$sql = 'SELECT user_id_from
 			FROM ' . $this->reputations_table . "
 			WHERE user_id_to = {$user_id}
-				AND (reputation_type_id = {$post_type} OR reputation_type_id = {$user_type})";
+				AND " . $this->db->sql_in_set('reputation_type_id', $rep_type_ids);
 		$result = $this->db->sql_query($sql);
 
 		while ($row = $this->db->sql_fetchrow($result))
@@ -401,30 +425,23 @@ class reputation_manager
 	*/
 	public function generate_post_link($row)
 	{
-		$post_subject = $post_url = '';
-
-		// Post was deleted
-		if (!isset($row['post_subject']) && !isset($row['post_id']))
+		if (isset($row['post_id']) && $row['post_visibility'] != ITEM_DELETED)
+		{
+			$post_subject = $row['post_subject'] ?: $this->user->lang('POST');
+			$post_url = ($this->auth->acl_get('f_read', $row['forum_id']))
+				? append_sid("{$this->root_path}viewtopic.{$this->php_ext}", 'f=' . $row['forum_id'] . '&amp;p=' . $row['post_id'] . '#p' . $row['post_id'])
+				: '';
+		}
+		else
 		{
 			$post_subject = $this->user->lang('RS_POST_DELETE');
+			$post_url = '';
 		}
 
-		// Post exists
-		if (isset($row['post_id']))
-		{
-			// Check forum read permission
-			if ($this->auth->acl_get('f_read', $row['forum_id']))
-			{
-				$post_subject = $row['post_subject'] . ' [#p' . $row['post_id'] . ']';
-				$post_url = append_sid("{$this->root_path}viewtopic.$this->php_ext", 'f=' . $row['forum_id'] . '&amp;p=' . $row['post_id'] . '#p' . $row['post_id']);
-			}
-		}
-
-		$this->template->assign_block_vars('reputation.post', array(
+		$this->template->assign_block_vars('reputation.post', [
 			'POST_SUBJECT'	=> $post_subject,
 			'U_POST'		=> $post_url,
-			'S_POST'		=> $row['reputation_type_id'] == $this->get_reputation_type_id('post'),
-		));
+		]);
 	}
 
 	/**
@@ -436,24 +453,23 @@ class reputation_manager
 	*/
 	public function delete_reputation($data)
 	{
-		// Required fields
-		$fields = array(
+		$required_fields = [
 			'user_id_from',
 			'user_id_to',
 			'reputation_item_id',
 			'reputation_points',
 			'reputation_type_name',
-		);
+		];
 
-		foreach ($fields as $field)
+		foreach ($required_fields as $field)
 		{
 			if (!isset($data[$field]))
 			{
-				throw new \pico\reputation\exception\invalid_argument(array($field, 'FIELD_MISSING'));
+				throw new \Exception($this->user->lang('EXCEPTION_FIELD_MISSING', $field));
 			}
 		}
 
-		if ($data['reputation_type_id'] == $this->get_reputation_type_id('post'))
+		if (in_array($data['reputation_type_name'], ['post', 'auc_post_buyer', 'auc_post_seller']))
 		{
 			$sql = 'UPDATE ' . POSTS_TABLE . "
 				SET post_reputation = post_reputation - {$data['reputation_points']}
@@ -465,24 +481,34 @@ class reputation_manager
 			WHERE reputation_id = {$data['reputation_id']}";
 		$this->db->sql_query($sql);
 
+		$this->notification_manager->delete_notifications('pico.reputation.notification.type.rate_post_negative', $data['reputation_id']);
+		$this->notification_manager->delete_notifications('pico.reputation.notification.type.rate_post_positive', $data['reputation_id']);
+		$this->notification_manager->delete_notifications('pico.reputation.notification.type.rate_user_negative', $data['reputation_id']);
+		$this->notification_manager->delete_notifications('pico.reputation.notification.type.rate_user_positive', $data['reputation_id']);
+
+		$user_rep_field = (in_array($data['reputation_type_name'], ['auc_post_buyer', 'auc_user_buyer']))
+			? 'user_reputation_auc_buyer'
+			: ((in_array($data['reputation_type_name'], ['auc_post_seller', 'auc_user_seller']))
+				? 'user_reputation_auc_seller'
+				: 'user_reputation');
+
 		$sql = 'UPDATE ' . USERS_TABLE . "
-			SET user_reputation = user_reputation - {$data['reputation_points']}
+			SET $user_rep_field = $user_rep_field - {$data['reputation_points']}
 			WHERE user_id = {$data['user_id_to']}";
 		$this->db->sql_query($sql);
 
-		// Check max/min points
 		if ($this->config['rs_max_point'] || $this->config['rs_min_point'])
 		{
 			$this->check_max_min($data['user_id_to']);
 		}
 
-		$this->log->add('admin', $this->user->data['user_id'], $this->user->ip, 'LOG_REPUTATION_DELETED', false, array(
-			'user_id_from'	=> (isset($data['username_from'])) ? $data['username_from'] : $data['user_id_from'],
-			'user_id_to'	=> (isset($data['username_to'])) ? $data['username_to'] : $data['user_id_to'],
-			'points'		=> $data['reputation_points'],
-			'type_name'		=> $data['reputation_type_name'],
-			'item_id'		=> $data['reputation_item_id'],
-		));
+		// $this->log->add('admin', $this->user->data['user_id'], $this->user->ip, 'LOG_REPUTATION_DELETED', false, [
+			// 'user_id_from'	=> (isset($data['username_from'])) ? $data['username_from'] : $data['user_id_from'],
+			// 'user_id_to'	=> (isset($data['username_to'])) ? $data['username_to'] : $data['user_id_to'],
+			// 'points'		=> $data['reputation_points'],
+			// 'type_name'		=> $data['reputation_type_name'],
+			// 'item_id'		=> $data['reputation_item_id'],
+		// ]);
 	}
 
 	/**
@@ -495,19 +521,18 @@ class reputation_manager
 	*/
 	public function clear_post_reputation($post_id, $data)
 	{
-		// Required fields
-		$fields = array(
+		$required_fields = [
 			'user_id_to',
 			'reputation_item_id',
 			'reputation_type_id',
 			'post_reputation',
-		);
+		];
 
-		foreach ($fields as $field)
+		foreach ($required_fields as $field)
 		{
-			if (!isset($data[$field]))
+			if (!isset($data[0][$field]))
 			{
-				throw new \pico\reputation\exception\invalid_argument(array($field, 'FIELD_MISSING'));
+				throw new \Exception($this->user->lang('EXCEPTION_FIELD_MISSING', $field));
 			}
 		}
 
@@ -516,26 +541,49 @@ class reputation_manager
 			WHERE post_id = {$post_id}";
 		$this->db->sql_query($sql);
 
+		$rep_type_names = $this->get_reputation_types();
+		$rep_type_ids = array_flip($rep_type_names);
+		$points = array_fill_keys($rep_type_names, 0);
+		foreach ($data as $d)
+			$points[$rep_type_names[$d['reputation_type_id']]] += $d['reputation_points'];
+
+		// $sql = 'UPDATE ' . USERS_TABLE . "
+			// SET user_reputation = user_reputation - {$points['post']},
+				// user_reputation_auc_buyer = user_reputation_auc_buyer - {$points['auc_post_buyer']},
+				// user_reputation_auc_seller = user_reputation_auc_seller - {$points['auc_post_seller']}
+			// WHERE user_id = {$data[0]['user_id_to']}";
+		// $this->db->sql_query($sql);
 		$sql = 'UPDATE ' . USERS_TABLE . "
-			SET user_reputation = user_reputation - {$data['post_reputation']}
-			WHERE user_id = {$data['user_id_to']}";
+			SET user_reputation = user_reputation - {$points['post']}
+			WHERE user_id = {$data[0]['user_id_to']}";
 		$this->db->sql_query($sql);
 
-		// Check max/min points
 		if ($this->config['rs_max_point'] || $this->config['rs_min_point'])
 		{
-			$this->check_max_min($data['user_id_to']);
+			$this->check_max_min($data[0]['user_id_to']);
 		}
 
+		// $sql = 'DELETE FROM ' . $this->reputations_table . "
+			// WHERE reputation_item_id = {$post_id}
+				// AND " . $this->db->sql_in_set('reputation_type_id', [$rep_type_ids['post'], $rep_type_ids['auc_post_buyer'], $rep_type_ids['auc_post_seller']]);
+		// $this->db->sql_query($sql);
 		$sql = 'DELETE FROM ' . $this->reputations_table . "
 			WHERE reputation_item_id = {$post_id}
-				AND reputation_type_id = {$data['reputation_type_id']}";
+				AND " . $this->db->sql_in_set('reputation_type_id', [$rep_type_ids['post']]);
 		$this->db->sql_query($sql);
 
-		$this->log->add('admin', $this->user->data['user_id'], $this->user->ip, 'LOG_POST_REPUTATION_CLEARED', false, array(
-			'user_id_to'	=> (isset($data['username_to'])) ? $data['username_to'] : $data['user_id_to'],
-			'post_subject'	=> (isset($data['post_subject'])) ? $data['post_subject'] : $data['reputation_item_id'],
-		));
+		$sql = 'DELETE FROM ' . NOTIFICATIONS_TABLE . '
+			WHERE ' . $this->db->sql_in_set('notification_type_id', [
+				$this->notification_manager->get_notification_type_id('pico.reputation.notification.type.rate_post_negative'),
+				$this->notification_manager->get_notification_type_id('pico.reputation.notification.type.rate_post_positive'),
+			]) . '
+			AND item_parent_id = ' . $post_id;
+		$this->db->sql_query($sql);
+
+		// $this->log->add('admin', $this->user->data['user_id'], $this->user->ip, 'LOG_POST_REPUTATION_CLEARED', false, [
+			// 'user_id_to'	=> (isset($data['username_to'])) ? $data['username_to'] : $data['user_id_to'],
+			// 'post_subject'	=> (isset($data['post_subject'])) ? $data['post_subject'] : $data['reputation_item_id'],
+		// ]);
 	}
 
 	/**
@@ -549,36 +597,53 @@ class reputation_manager
 	*/
 	public function clear_user_reputation($user_id, $data, $post_ids)
 	{
-		// Required fields
-		$fields = array(
-			'user_id_to',
-			'reputation_item_id',
-		);
+		$required_fields = [
+			'user_reputation',
+		];
 
-		foreach ($fields as $field)
+		foreach ($required_fields as $field)
 		{
 			if (!isset($data[$field]))
 			{
-				throw new \pico\reputation\exception\invalid_argument(array($field, 'FIELD_MISSING'));
+				throw new \Exception($this->user->lang('EXCEPTION_FIELD_MISSING', $field));
 			}
 		}
 
+		// $sql = 'UPDATE ' . USERS_TABLE . "
+			// SET user_reputation = 0,
+				// user_reputation_auc_buyer = 0,
+				// user_reputation_auc_seller = 0
+			// WHERE user_id = {$user_id}";
+		// $this->db->sql_query($sql);
 		$sql = 'UPDATE ' . USERS_TABLE . "
 			SET user_reputation = 0
 			WHERE user_id = {$user_id}";
 		$this->db->sql_query($sql);
 
-		$sql = 'UPDATE ' . POSTS_TABLE . '
-			SET post_reputation = 0
-			WHERE ' . $this->db->sql_in_set('post_id', $post_ids, false, true);
-		$this->db->sql_query($sql);
+		if (sizeof($post_ids))
+		{
+			$sql = 'UPDATE ' . POSTS_TABLE . '
+				SET post_reputation = 0
+				WHERE ' . $this->db->sql_in_set('post_id', $post_ids, false, true);
+			$this->db->sql_query($sql);
+		}
 
 		$sql = 'DELETE FROM ' . $this->reputations_table . "
 			WHERE user_id_to = {$user_id}";
 		$this->db->sql_query($sql);
 
-		$this->log->add('admin', $this->user->data['user_id'], $this->user->ip, 'LOG_USER_REPUTATION_CLEARED', false, array(
+		$sql = 'DELETE FROM ' . NOTIFICATIONS_TABLE . '
+			WHERE ' . $this->db->sql_in_set('notification_type_id', [
+				$this->notification_manager->get_notification_type_id('pico.reputation.notification.type.rate_user_negative'),
+				$this->notification_manager->get_notification_type_id('pico.reputation.notification.type.rate_user_positive'),
+				$this->notification_manager->get_notification_type_id('pico.reputation.notification.type.rate_post_negative'),
+				$this->notification_manager->get_notification_type_id('pico.reputation.notification.type.rate_post_positive'),
+			]) . '
+			AND user_id = ' . $user_id;
+		$this->db->sql_query($sql);
+
+		$this->log->add('admin', $this->user->data['user_id'], $this->user->ip, 'LOG_USER_REPUTATION_CLEARED', false, [
 			'user_id_to'	=> (isset($data['username_to'])) ? $data['username_to'] : $data['user_id_to'],
-		));
+		]);
 	}
 }
