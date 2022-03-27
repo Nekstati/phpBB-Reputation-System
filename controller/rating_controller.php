@@ -515,7 +515,7 @@ class rating_controller
 			$this->show_error($message, 'memberlist', $uid);
 		}
 
-		if ($this->config['rs_user_rating_gap'] && (time() < $check_user['reputation_time'] + $this->config['rs_user_rating_gap'] * 3600))
+		if ($check_user && $this->config['rs_user_rating_gap'] && (time() < $check_user['reputation_time'] + $this->config['rs_user_rating_gap'] * 3600))
 		{
 			// Inform user how long he has to wait to rate the user
 			$next_vote_time = ($check_user['reputation_time'] + $this->config['rs_user_rating_gap'] * 3600) - time();
