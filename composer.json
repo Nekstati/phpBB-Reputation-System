@@ -2,8 +2,8 @@
 	"name": "pico/reputation",
 	"type": "phpbb-extension",
 	"description": "An extension which adds reputations (karma) to your board.",
-	"homepage": "https://github.com/Pico88/phpBB-Reputation-System",
-	"version": "2.0.0",
+	"homepage": "https://github.com/jbreu/phpBB-Reputation-System",
+	"version": "2.0.1",
 	"license": "GPL-2.0",
 	"authors": [
 		{

@@ -58,7 +58,8 @@ class main_listener implements EventSubscriberInterface
 	public function reputation_status()
 	{
 		$this->template->assign_vars([
-			'S_REPUTATION'	=> $this->config['rs_enable'],
+			'S_REPUTATION'		=> $this->config['rs_enable'],
+			'RS_SHOW_ZERO_REP'	=> $this->config['rs_show_zero_rep'] === '' ? 1 : $this->config['rs_show_zero_rep'],
 		]);
 	}
 

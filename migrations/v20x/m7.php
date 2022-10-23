@@ -27,6 +27,7 @@ class m7 extends \phpbb\db\migration\container_aware_migration
 			['config.add', ['rs_content_widget_type', '0']],
 			['config.add', ['rs_miniprofile_widget_type', '2']],
 			['config.add', ['rs_users_to_exclude', '']],
+			['config.add', ['rs_show_zero_rep', '1']],
 			['config.remove', ['rs_power_explain']],
 			['config.update', ['rs_min_point', min($this->config['rs_min_point'], 0)]], // Now only negative or zero value is allowed
 			['config.update', ['rs_post_rating', $this->config['rs_post_rating'] == 1 ? 2 : 0]], // Now 1 means "First post only"

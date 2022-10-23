@@ -227,6 +227,9 @@ class reputation_manager
 			$this->check_max_min($data['user_id_to']);
 		}
 
+		if (isset($_POST['rs_acp_change_points_only']) && defined('ADMIN_START'))
+			return;
+
 		// Unset reputation type - it is not stored in DB
 		unset($data['reputation_type']);
 

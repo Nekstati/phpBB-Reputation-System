@@ -1,3 +1,7 @@
 <!-- IF S_REPUTATION -->
 	<!-- INCLUDECSS @pico_reputation/reputation_common.css -->
 <!-- ENDIF -->
+
+{% if S_REPUTATION && !RS_SHOW_ZERO_REP %}
+	<style>.rs-widget .post-reputation.neutral { display: none; }</style>
+{% endif %}

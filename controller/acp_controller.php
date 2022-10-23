@@ -219,6 +219,7 @@ class acp_controller implements acp_interface
 			'rs_content_widget_type'		=> ['lang' => 'RS_CONTENT_WIDGET_TYPE', 'validate' => 'int:0:2', 'type' => 'custom', 'function' => [$method, 'rs_content_widget_type'], 'explain' => false],
 			'rs_miniprofile_widget_type'	=> ['lang' => 'RS_MINIPROFILE_WIDGET_TYPE', 'validate' => 'int:0:2', 'type' => 'custom', 'function' => [$method, 'rs_miniprofile_widget_type'], 'explain' => true],
 			// 'rs_auc_miniprofile_double_rep'	=> ['lang' => 'RS_AUC_MINIPROFILE_DOUBLE_REP', 'validate' => 'int:0:1', 'type' => 'custom', 'function' => [$method, 'rs_auc_miniprofile_double_rep'], 'explain' => true],
+			'rs_show_zero_rep'		=> ['lang' => 'RS_SHOW_ZERO_REP', 'validate' => 'string', 'type' => 'custom', 'function' => [$method, 'rs_show_zero_rep'], 'explain' => true],
 
 			'legend3'				=> ['lang' => 'ACP_RS_POSTS_RATING'],
 			'rs_post_rating'		=> ['lang' => 'RS_POST_RATING', 'validate' => 'int:0:2', 'type' => 'custom', 'function' => [$method, 'post_rating'], 'explain' => true],
@@ -251,6 +252,13 @@ class acp_controller implements acp_interface
 			'rs_enable_toplist'		=> ['lang' => 'RS_ENABLE_TOPLIST', 'validate' => 'bool', 'type' => 'radio:yes_no', 'explain' => true],
 			'rs_toplist_direction'	=> ['lang' => 'RS_TOPLIST_DIRECTION', 'validate' => 'bool', 'type' => 'custom', 'function' => [$method, 'toplist_direction'], 'explain' => false],
 			'rs_toplist_num'		=> ['lang' => 'RS_TOPLIST_NUM', 'validate' => 'int:1', 'type' => 'number:1', 'explain' => false],
+
+
+			'legend8'				=> ['lang' => 'ACP_RS_PENALTY'],
+			'rs_penalty_on'			=> ['lang' => 'RS_PENALTY_ON', 'validate' => 'bool', 'type' => 'radio:yes_no', 'explain' => true],
+			'rs_penalty_days'		=> ['lang' => 'RS_PENALTY_DAYS', 'validate' => 'int:1:1000', 'type' => 'number:1:1000', 'explain' => false, 'append' => ' ' . $this->user->lang['DAYS']],
+			'rs_penalty_points'		=> ['lang' => 'RS_PENALTY_POINTS', 'validate' => 'int:1:1000', 'type' => 'number:1:1000', 'explain' => false, 'append' => ' ' . $this->user->lang['RS_PENALTY_POINTS_UNIT']],
+			'rs_penalty_groups'		=> ['lang' => 'RS_PENALTY_GROUPS', 'validate' => 'none', 'type' => 'custom', 'function' => [$method, 'build_groups_menu'], 'explain' => true],
 		];
 
 		$cfg_array = $this->request->is_set_post('config') ? utf8_normalize_nfc(request_var('config', ['' => ''], true)) : $this->new_config;
@@ -276,6 +284,10 @@ class acp_controller implements acp_interface
 			$errors[] = $this->user->lang('RS_USERS_TO_EXCLUDE_ERROR');
 		}
 
+		$cfg_array['rs_penalty_groups'] = ($submit) ? json_encode($this->request->variable('rs_penalty_groups', [0]), JSON_NUMERIC_CHECK) : $this->new_config['rs_penalty_groups'];
+		if (strlen($cfg_array['rs_penalty_groups']) > 255)
+			$errors[] = $this->user->lang('RS_ERR_TOO_MANY_GROUPS');
+
 		if (sizeof($errors))
 		{
 			$submit = false;
@@ -293,11 +305,13 @@ class acp_controller implements acp_interface
 				continue;
 			}
 
-			$this->new_config[$config_name] = $config_value = $cfg_array[$config_name];
+			// $this->new_config[$config_name] = $cfg_array[$config_name];
 
 			if ($submit)
 			{
-				$this->config->set($config_name, $config_value);
+				$this->config->set($config_name, $cfg_array[$config_name]);
+
+				$this->new_config[$config_name] = $cfg_array[$config_name];
 
 				if ($config_name == 'rs_post_rating' && $this->request->is_set_post('enable_forums_reputation'))
 				{
@@ -615,8 +629,47 @@ class setting_methods
 		return $radio_text;
 	}
 
+	function rs_show_zero_rep($value, $key)
+	{
+		$radio_ary = [
+			1	=> 'RS_SHOW_ZERO_REP_1',
+			0	=> 'RS_SHOW_ZERO_REP_0',
+		];
+
+		$radio_text = h_radio('config[rs_show_zero_rep]', $radio_ary, ($value === '' ? 1 : $value), 'rs_show_zero_rep', $key, '<br />');
+
+		return $radio_text;
+	}
+
 	function instant_vote()
 	{
 		return $this->user->lang('RS_INSTANT_VOTE_TEXT');
+	}
+
+	function build_groups_menu($value, $key, $exclude_predefined_groups = false)
+	{
+		$this->db = $GLOBALS['db'];
+		$this->group_helper = $GLOBALS['phpbb_container']->get('group_helper');
+
+		$sql = 'SELECT group_id, group_name, group_type, group_colour
+			FROM ' . GROUPS_TABLE . '
+			WHERE ' . $this->db->sql_in_set('group_name', ['BOTS', 'GUESTS'], true, true) . '
+			ORDER BY group_name';
+		$result = $this->db->sql_query($sql, 3600);
+		$groups = $this->db->sql_fetchrowset($result);
+		$this->db->sql_freeresult($result);
+
+		$selected_groups = (array) json_decode($value, true);
+		$html = "<select id=\"$key\" name=\"{$key}[]\" multiple=\"multiple\" style=\"height: " . (sizeof($groups) * 14) . 'px; max-height: 400px; min-height: 50px;">';
+
+		foreach ($groups as $group) {
+			$selected = (in_array($group['group_id'], $selected_groups)) ? 'selected' : '';
+			$disabled = ($exclude_predefined_groups && $group['group_type'] == GROUP_SPECIAL) ? 'disabled class="disabled-option"' : '';
+			$group['group_name'] = $this->group_helper->get_name($group['group_name']);
+			$html .= "<option value=\"{$group['group_id']}\" $selected $disabled>{$group['group_name']}</option>";
+		}
+
+		$html .= '</select>';
+		return $html;
 	}
 }

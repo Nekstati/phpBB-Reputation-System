@@ -1,0 +1,7 @@
+Subject: {SITENAME} - Penalty for inactivity
+
+Hello {USERNAME},
+
+Your reputation has been decreased by {POINTS} points because your account has been inactive for {DAYS} days. Please visit us more often if you wish to avoid this in the future. {U_BOARD}
+
+{EMAIL_SIG}

@@ -94,3 +94,15 @@ services:
             - '@config'
             - '@dbal.conn'
             - '%tables.reputations%'
+
+    pico.reputation.cron.task.penalty:
+        class: pico\reputation\cron\penalty
+        arguments:
+            - '@config'
+            - '@dbal.conn'
+            - '@user'
+            - '%core.root_path%'
+        calls:
+            - [set_name, [cron.task.pico_reputation_penalty]]
+        tags:
+            - { name: cron.task }

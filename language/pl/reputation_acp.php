@@ -42,6 +42,7 @@ $lang = array_merge($lang, [
 	'ACP_RS_COMMENT'		=> 'Komentarze',
 	'ACP_RS_POWER'			=> 'Siła reputacji',
 	'ACP_RS_TOPLIST'		=> 'Toplist',
+	'ACP_RS_PENALTY'		=> 'Penalty for inactivity',
 
 	// General
 	'RS_NEGATIVE_POINT'				=> 'Włącz negatywne punkty',
@@ -108,6 +109,10 @@ $lang = array_merge($lang, [
 
 	'RS_WIDGET_TYPE_ERROR'			=> 'Post rate buttons can be displayed either above post text, or below user avatar, but not in both places.',
 
+	'RS_SHOW_ZERO_REP'				=> 'If user or post rating = 0',
+	'RS_SHOW_ZERO_REP_1'			=> 'Show',
+	'RS_SHOW_ZERO_REP_0'			=> 'Hide',
+
 	// User rating
 	'RS_USER_RATING'				=> 'Włącz ocenę użytkownika',
 	'RS_USER_RATING_GAP'			=> 'Przerwa w ocenianiu',
@@ -152,6 +157,17 @@ $lang = array_merge($lang, [
 	'RS_TL_VERTICAL'				=> 'Pionowy',
 	'RS_TOPLIST_NUM'				=> 'Użytkowników na Topliście',
 
+	// Penalty
+	'RS_PENALTY_ON'					=> 'Decrease user reputation after long inactivity',
+	'RS_PENALTY_ON_EXPLAIN'			=> 'Example: say we have set 30 days and 1 point here. Now, if some user ignores our website for a long time, his reputation will decrease by 1 point every 30 days. But, if he logins in 29th day, nothing will decrease. Nothing will decrease also in case if reputation already equals to zero or to the “Minimum points” parameter. If reputation decreases, the user receives an email notification.',
+	'RS_PENALTY_DAYS'				=> 'After how many days we decrease the reputation',
+	'RS_PENALTY_POINTS'				=> 'By how many points we decrease the reputation',
+	'RS_PENALTY_POINTS_UNIT'		=> 'points',
+	'RS_PENALTY_GROUPS'				=> 'Which groups are affected',
+	'RS_PENALTY_GROUPS_EXPLAIN'		=> 'User is affected if he is a member of one of the groups selected here and <i>that group is his default group</i>. For example, administrators are members of “Registered users”, but if you select only “Registered users”, administrators are not affected since their default group is “Administrators”.<br /><br />
+		Hold CTRL key to select multiple groups.',
+	'RS_ERR_TOO_MANY_GROUPS'		=> 'Too many groups selected in “Penalty for inactivity” section.',
+
 	// Rate module
 	'POINTS_INVALID'	=> 'Pole punkty musi zawierać tylko liczby.',
 	'RS_VOTE_SAVED'		=> 'Twój głos został poprawnie zapisany',
@@ -162,4 +178,5 @@ $lang = array_merge($lang, [
 	// 'RS_POINTS_TYPE_SELLER'			=> 'Seller reputation',
 	'RS_POINTS'						=> 'Punkty',
 	'RS_COMMENT'					=> 'Komentarz',
+	'RS_CHANGE_POINTS_ONLY'			=> 'Don’t store as the asmin’s vote, just change the value',
 ]);
