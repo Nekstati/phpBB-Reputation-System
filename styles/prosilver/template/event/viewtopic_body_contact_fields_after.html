@@ -1,6 +1,10 @@
 <!-- IF S_REPUTATION and S_FORUM_REPUTATION and postrow.U_POST_AUTHOR and (postrow.S_RATE_POST || postrow.S_VIEW_REPUTATION) and RS_MINIPROFILE_WIDGET_TYPE > 0 -->
 <dd class="rs-miniprofile-block">
 
+	{% if RS_MINIPROFILE_WIDGET_TYPE == 1 && (postrow.USER_REPUTATION != 0 || (RS_AUC && RS_AUC_MINIPROFILE_DOUBLE_REP && AUC_CURRENCY_SIGN && postrow.USER_REPUTATION_COMMON != 0)) %}
+		<strong>{L_REPUTATION}{L_COLON}</strong>
+	{% endif %}
+
 	<div class="button rs-widget<!-- IF postrow.POST_VOTE_CLASS --> {postrow.POST_VOTE_CLASS}<!-- ENDIF -->" {{ RS_AUC ? 'data-user-auc' : 'data-user' }}="{postrow.POSTER_ID}" data-post="{postrow.POST_ID}">
 
 		<!-- IF postrow.S_RATE_POST and postrow.S_RATE_POST_NEGATIVE and RS_MINIPROFILE_WIDGET_TYPE == 2 -->
